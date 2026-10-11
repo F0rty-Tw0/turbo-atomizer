@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,9 @@ const COUNT_REPORTER_PATH = join(import.meta.dirname, '../../count-reporter.ts')
 const SILENT_REPORTER_PATH = join(import.meta.dirname, '../test/fixtures/silent-reporter.ts');
 const A_ARGV = ['tests/a.spec.ts', 'a.spec.ts'];
 const CONFIG_ARG = '--config=playwright.config.ts';
+const TAGGED_TURBO_JSON = '{ "extends": ["//"], "tags": ["atomizer:definitions"], "tasks": {} }\n';
+const SKIP_NOTICE =
+  'turbo-atomizer: skipped tests/a.spec.ts in the generated package; add --filter=<test package> to avoid scheduling it\n';
 
 type ExecProbe = {
   readonly deps: ExecDeps;
@@ -55,10 +58,17 @@ describe('FEATURE: exec', (): void => {
   let copy: FixtureCopy;
   let packageDir: string;
   let stderrChunks: string[];
-  let restoreStderr: () => void;
+  let stdoutChunks: string[];
+  let restoreOutput: () => void;
 
   const captureStderr = (chunk: string | Uint8Array): boolean => {
     stderrChunks.push(String(chunk));
+
+    return true;
+  };
+
+  const captureStdout = (chunk: string | Uint8Array): boolean => {
+    stdoutChunks.push(String(chunk));
 
     return true;
   };
@@ -74,15 +84,18 @@ describe('FEATURE: exec', (): void => {
 
   beforeEach((): void => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(captureStderr);
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(captureStdout);
 
     stderrChunks = [];
-    restoreStderr = (): void => {
+    stdoutChunks = [];
+    restoreOutput = (): void => {
       stderrSpy.mockRestore();
+      stdoutSpy.mockRestore();
     };
   });
 
   afterEach((): void => {
-    restoreStderr();
+    restoreOutput();
   });
 
   describe('GIVEN the test package, a spec task and a planted file in its slug dir', (): void => {
@@ -251,8 +264,30 @@ describe('FEATURE: exec', (): void => {
     });
   });
 
-  describe('GIVEN a cwd without the Playwright config', (): void => {
-    it('WHEN exec runs with --config THEN it exits 1 and asks to run from the test package', async (): Promise<void> => {
+  describe('GIVEN the generated package: no Playwright config and a turbo.json tagged atomizer:definitions', (): void => {
+    let atomsDir: string;
+
+    beforeAll(async (): Promise<void> => {
+      atomsDir = join(copy.directory, 'tools/e2e-atoms');
+      await mkdir(atomsDir, { recursive: true });
+      await writeFile(join(atomsDir, 'turbo.json'), TAGGED_TURBO_JSON);
+    });
+
+    it('WHEN exec runs, even with invalid TURBO_ATOMIZER_ARGS, THEN it exits 0, prints the skip notice and creates nothing', async (): Promise<void> => {
+      const probe = execProbe(COUNT_REPORTER_PATH, '[not json');
+
+      const exitCode = await runExec([...A_ARGV, CONFIG_ARG], atomsDir, probe.deps);
+      const entries = await readdir(atomsDir);
+
+      expect(exitCode).toBe(0);
+      expect(stdoutChunks.join('')).toBe(SKIP_NOTICE);
+      expect(entries).toEqual(['turbo.json']);
+      expect(probe.calls).toEqual([]);
+    });
+  });
+
+  describe('GIVEN a cwd without the Playwright config or the definitions tag', (): void => {
+    it('WHEN exec runs from a turbo.json without tags THEN it exits 1 and asks to run from the test package', async (): Promise<void> => {
       const probe = execProbe(COUNT_REPORTER_PATH);
 
       const exitCode = await runExec([...A_ARGV, CONFIG_ARG], copy.directory, probe.deps);
@@ -262,10 +297,10 @@ describe('FEATURE: exec', (): void => {
       expect(stderr).toContain('run from the test package');
     });
 
-    it('WHEN exec runs without --config THEN it exits 1 and asks to run from the test package', async (): Promise<void> => {
+    it('WHEN exec runs without --config from a dir without turbo.json THEN it exits 1 and asks to run from the test package', async (): Promise<void> => {
       const probe = execProbe(COUNT_REPORTER_PATH);
 
-      const exitCode = await runExec(A_ARGV, copy.directory, probe.deps);
+      const exitCode = await runExec(A_ARGV, join(packageDir, 'tests'), probe.deps);
       const stderr = stderrChunks.join('');
 
       expect(exitCode).toBe(1);

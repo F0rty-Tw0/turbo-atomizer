@@ -1,7 +1,8 @@
 import { constants } from 'node:os';
 
-import { TURBO_ATOMIZER_ARGS_ENV } from '../../shared/atomizer/common/atomizer.const.ts';
+import { ATOMIZER_DEFINITIONS_TAG, TURBO_ATOMIZER_ARGS_ENV } from '../../shared/atomizer/common/atomizer.const.ts';
 import { findPlaywrightConfig } from '../../shared/config/data-access/atomizer-config.store.ts';
+import { readTurboJson } from '../../shared/turbo/data-access/turbo-json.store.ts';
 import { toAtomSlug } from '../../sync/utils/atom-slug.util.ts';
 import type { ExecArgs, ExecDeps, PlaywrightTestRun, SlugPaths } from '../common/exec.type.ts';
 import { readCountFile } from '../data-access/count-file.store.ts';
@@ -27,6 +28,10 @@ const failExec = (message: string): number => {
   return 1;
 };
 
+const failInvalidAtomizerArgs = (value: string | undefined): number => {
+  return failExec(`${TURBO_ATOMIZER_ARGS_ENV} is not a JSON array of strings: ${String(value)}`);
+};
+
 const findConfigFile = (cwd: string, execArgs: ExecArgs): string | undefined => {
   const configFile = execArgs.configFile;
 
@@ -35,6 +40,21 @@ const findConfigFile = (cwd: string, execArgs: ExecArgs): string | undefined => 
   const exists = packageFileExists(cwd, configFile);
 
   return exists ? configFile : undefined;
+};
+
+/** Spec §6.3 step 1: turbo also schedules the generated package's copy of a file task; that copy exits 0 without running. */
+const skipGeneratedCopy = async (cwd: string, taskPath: string): Promise<number> => {
+  const turboJson = await readTurboJson(cwd);
+  const tags = turboJson?.content.tags ?? [];
+  const isGeneratedPackage = tags.includes(ATOMIZER_DEFINITIONS_TAG);
+
+  if (!isGeneratedPackage) return failExec(`no Playwright config in ${cwd}; run from the test package`);
+
+  process.stdout.write(
+    `turbo-atomizer: skipped ${taskPath} in the generated package; add --filter=<test package> to avoid scheduling it\n`
+  );
+
+  return 0;
 };
 
 const runPlaywright = async (run: SlugRun, leaseEnv: Record<string, string>): Promise<number> => {
@@ -65,9 +85,9 @@ export const runExec = async (argv: string[], cwd: string, deps: ExecDeps): Prom
   const execArgs = parseExecArgv(argv, envArgs ?? []);
   const configFile = findConfigFile(cwd, execArgs);
 
-  if (configFile === undefined) return failExec(`no Playwright config in ${cwd}; run from the test package`);
+  if (configFile === undefined) return skipGeneratedCopy(cwd, execArgs.taskPath);
 
-  if (envArgs === undefined) return failExec(`${TURBO_ATOMIZER_ARGS_ENV} is not a JSON array of strings: ${String(deps.atomizerArgs)}`);
+  if (envArgs === undefined) return failInvalidAtomizerArgs(deps.atomizerArgs);
 
   const hasTaskFile = packageFileExists(cwd, execArgs.taskPath);
 
