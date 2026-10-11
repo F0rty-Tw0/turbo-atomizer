@@ -23,9 +23,11 @@ const staleFindings = (stale: AtomsDiff | undefined): DoctorFinding[] => {
   if (stale === undefined) return [];
 
   const { added, removed, changed } = stale;
+  const isFileTaskDiff = added.length + removed.length + changed.length > 0;
   const counts = `${String(added.length)} added, ${String(removed.length)} removed, ${String(changed.length)} changed`;
+  const reason = isFileTaskDiff ? counts : 'carriers or formatting only';
 
-  return [error('stale-generated', `The generated file tasks are stale (${counts}); run \`turbo-atomizer sync\`.`)];
+  return [error('stale-generated', `The generated file tasks are stale (${reason}); run \`turbo-atomizer sync\`.`)];
 };
 
 const helperFindings = (facts: DoctorFacts): DoctorFinding[] => {

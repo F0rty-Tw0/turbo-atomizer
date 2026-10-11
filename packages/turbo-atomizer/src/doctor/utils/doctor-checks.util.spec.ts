@@ -24,13 +24,23 @@ describe('FEATURE: doctor checks', (): void => {
       expect(findings).toMatchObject([{ level: 'error', code: 'stale-generated' }]);
     });
 
-    it('WHEN only carriers or formatting changed THEN a stale-generated error is still returned', (): void => {
+    it('WHEN a file task changed THEN the error counts the diff', (): void => {
+      const stale: AtomsDiff = { added: ['tests/b.spec.ts'], removed: [], changed: ['tests/a.spec.ts'] };
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, stale };
+
+      const [finding] = runDoctorChecks(facts);
+
+      expect(finding?.message).toContain('stale (1 added, 0 removed, 1 changed)');
+    });
+
+    it('WHEN only carriers or formatting changed THEN a stale-generated error says so instead of three zero counts', (): void => {
       const stale: AtomsDiff = { added: [], removed: [], changed: [] };
       const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, stale };
 
       const findings = runDoctorChecks(facts);
 
       expect(findings).toMatchObject([{ level: 'error', code: 'stale-generated' }]);
+      expect(findings[0]?.message).toContain('stale (carriers or formatting only)');
     });
   });
 
