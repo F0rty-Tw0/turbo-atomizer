@@ -5,6 +5,7 @@ import type { FixtureWorkspace } from './test/common/fixture-workspace.type.ts';
 import { atomizerConfigFileSchema } from './test/common/turbo-query.schema.ts';
 import type { QueriedPackage } from './test/common/turbo-query.type.ts';
 import { createSyncedWorkspace } from './test/utils/atomizer-setup.spec.util.ts';
+import { isPmSelected } from './test/utils/e2e-env.spec.util.ts';
 import { queryPackage, tasksTagged } from './test/utils/turbo-query.spec.util.ts';
 import { cacheStatusOf, dryRunTasks } from './test/utils/turbo-summary.spec.util.ts';
 import { runChecked } from './test/utils/workspace-command.spec.util.ts';
@@ -49,7 +50,7 @@ const markUncached = async (workspace: FixtureWorkspace, pattern: string): Promi
 };
 
 describe('FEATURE: console contract', (): void => {
-  describe('GIVEN the pnpm-basic workspace synced with checkout.spec.ts marked uncached', (): void => {
+  describe.runIf(isPmSelected('pnpm'))('GIVEN the pnpm-basic workspace synced with checkout.spec.ts marked uncached', (): void => {
     const cleanups: (() => Promise<void>)[] = [];
     let workspace: FixtureWorkspace;
     let testPackage: QueriedPackage;

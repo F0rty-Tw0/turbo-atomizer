@@ -2,7 +2,7 @@ import { copyFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { createWorkspace } from './fixture-workspace.spec.util.ts';
-import { runChecked } from './workspace-command.spec.util.ts';
+import { quotedPath, runChecked } from './workspace-command.spec.util.ts';
 import { ATOMIZER_PACKAGE, INSTALL_COMMANDS } from '../common/fixture-workspace.const.ts';
 import type { FixtureWorkspace, PackageManager } from '../common/fixture-workspace.type.ts';
 import { rootManifestSchema } from '../common/turbo-summary.schema.ts';
@@ -24,7 +24,7 @@ const tarballOf = async (root: string): Promise<string> => {
 
 /** Clones `source` into `root`, copies the git-ignored tarball across and installs, as a CI runner would. */
 const prepareClone = async (root: string, source: string, pm: PackageManager): Promise<void> => {
-  await runChecked(root, `git clone --quiet ${JSON.stringify(source)} .`);
+  await runChecked(root, `git clone --quiet ${quotedPath(source)} .`);
 
   const tarball = await tarballOf(root);
 

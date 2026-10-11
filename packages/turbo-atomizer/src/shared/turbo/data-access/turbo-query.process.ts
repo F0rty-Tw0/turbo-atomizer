@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { sep } from 'node:path';
 
 import { resolveTurboBin } from './turbo-bin.path.ts';
 import { ATOMIZER_TASK_TAG_PREFIX } from '../../atomizer/common/atomizer.const.ts';
@@ -6,6 +7,7 @@ import { toStderrTail } from '../../playwright/utils/playwright-list-mapper.util
 import { TurboQueryException } from '../common/turbo-query.exception.ts';
 import { affectedTasksResultSchema, fileDepsResultSchema, packageTasksResultSchema } from '../common/turbo-query.schema.ts';
 import type { PackageTasks } from '../common/turbo-query.type.ts';
+import { toPosixPath, toWorkspaceFiles } from '../utils/turbo-query-path.util.ts';
 
 type TurboQueryRun = {
   readonly bin: string;
@@ -60,21 +62,20 @@ const queryTurbo = async (root: string, query: string): Promise<unknown> => {
   return result;
 };
 
-const isWorkspaceFile = (path: string): boolean => !path.split('/').includes('node_modules');
-
 const isWorkspacePackage = (dependency: DependencyPackage): boolean => dependency.name !== ROOT_PACKAGE_NAME;
 
 const taskName = (task: TaskItem): string => task.name;
 
 const toPackageTasks = (dependency: DependencyPackage): PackageTasks => {
   const tasks = dependency.tasks.items.map(taskName);
-  const packageTasks: PackageTasks = { name: dependency.name, dir: dependency.path, tasks };
+  const dir = toPosixPath(dependency.path, sep);
+  const packageTasks: PackageTasks = { name: dependency.name, dir, tasks };
 
   return packageTasks;
 };
 
 /**
- * Files `file` imports, transitively, as posix paths relative to `root`; `file` is relative to `root` too.
+ * Files `file` imports, transitively, as posix paths relative to `root` on every OS; `file` is relative to `root` too.
  * `node_modules` files are dropped. Unresolvable imports are skipped: turbo exits 0 for them.
  */
 export const turboQueryFileDeps = async (root: string, file: string): Promise<string[]> => {
@@ -84,7 +85,7 @@ export const turboQueryFileDeps = async (root: string, file: string): Promise<st
   const result = fileDepsResultSchema.parse(raw);
   const paths = result.data.file.dependencies.files.items.map((item): string => item.path);
 
-  return paths.filter(isWorkspaceFile);
+  return toWorkspaceFiles(paths, sep);
 };
 
 /** The direct workspace dependencies of `packageName` with their task names; the root package `//` is dropped. */

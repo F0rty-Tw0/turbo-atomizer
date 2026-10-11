@@ -3,12 +3,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PNPM_BASIC_SPECS } from './test/common/fixture-workspace.const.ts';
 import type { FixtureWorkspace } from './test/common/fixture-workspace.type.ts';
 import { createSyncedWorkspace } from './test/utils/atomizer-setup.spec.util.ts';
+import { isPmSelected } from './test/utils/e2e-env.spec.util.ts';
 import { startupCostReport } from './test/utils/startup-cost.spec.util.ts';
 import { fileTaskIds, missedFileTaskIds, summarizedRun } from './test/utils/turbo-summary.spec.util.ts';
 import { outputOf } from './test/utils/workspace-command.spec.util.ts';
 
 describe('FEATURE: per-file start-up cost', (): void => {
-  describe('GIVEN the pnpm-basic workspace, initialized and synced', (): void => {
+  describe.runIf(isPmSelected('pnpm'))('GIVEN the pnpm-basic workspace, initialized and synced', (): void => {
     let workspace: FixtureWorkspace;
 
     beforeAll(async (): Promise<() => Promise<void>> => {

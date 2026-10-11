@@ -47,3 +47,6 @@ export const NONCE_BYTES = 16;
 export const NONCE_TIMEOUT_MS = 5000;
 
 export const MAX_NONCE_LINE_LENGTH = 256;
+
+/** Marks the short-lived Windows launcher run of the supervisor entry, which only spawns the real supervisor and exits. */
+export const SUPERVISOR_SPAWN_FLAG = '--spawn';
