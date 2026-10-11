@@ -104,4 +104,20 @@ describe('FEATURE: turbo.json store', (): void => {
       await expect(reading).rejects.toBeInstanceOf(TurboJsonInvalidException);
     });
   });
+
+  describe('GIVEN a turbo.json with tags', (): void => {
+    it('WHEN it is read THEN the tags are returned', async (): Promise<void> => {
+      const doc = await readTurboJson(turboFixtureDir('tagged-package'));
+
+      expect(doc?.content.tags).toEqual(['atomizer:definitions']);
+    });
+  });
+
+  describe('GIVEN a turbo.json whose tags is not an array', (): void => {
+    it('WHEN it is read THEN it rejects with TurboJsonInvalidException', async (): Promise<void> => {
+      const reading = readTurboJson(turboFixtureDir('string-tags'));
+
+      await expect(reading).rejects.toBeInstanceOf(TurboJsonInvalidException);
+    });
+  });
 });

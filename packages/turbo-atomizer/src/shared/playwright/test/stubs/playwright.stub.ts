@@ -3,6 +3,7 @@ import type { PlaywrightWebServer } from '../../common/playwright.type.ts';
 
 export const ATOMIZER_ENV_STUB: AtomizerEnv = {
   active: false,
+  args: undefined,
   captureServerEnv: false,
   countFile: undefined,
   describe: false

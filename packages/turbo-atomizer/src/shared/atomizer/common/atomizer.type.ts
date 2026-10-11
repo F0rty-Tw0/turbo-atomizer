@@ -1,5 +1,6 @@
 export type AtomizerEnv = {
   readonly active: boolean;
+  readonly args: string | undefined;
   readonly captureServerEnv: boolean;
   readonly countFile: string | undefined;
   readonly describe: boolean;

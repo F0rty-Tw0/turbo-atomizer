@@ -23,7 +23,8 @@ const execFileAsync = promisify(execFile);
 
 const packageRoot = resolve(import.meta.dirname, '../../packages/turbo-atomizer');
 
-const REQUIRE_SCRIPT = 'for (const target of process.argv.slice(1)) require(target);';
+// exec.cjs runs exec as soon as it loads; exiting synchronously after the loop proves every require() returned without letting that run start.
+const REQUIRE_SCRIPT = 'for (const target of process.argv.slice(1)) require(target); process.exit(0);';
 
 const IMPORT_SCRIPT = 'for (const target of process.argv.slice(1)) await import(target);';
 
@@ -106,7 +107,11 @@ describe('FEATURE: build package', (): void => {
         const targets = requireTargets(manifest);
         const paths = targets.map((target): string => join(outDir, target));
 
-        const { stderr } = await execFileAsync(process.execPath, ['--no-experimental-require-module', '-e', REQUIRE_SCRIPT, ...paths]);
+        const { stderr } = await execFileAsync(
+          process.execPath,
+          ['--no-experimental-require-module', '-e', REQUIRE_SCRIPT, ...paths],
+          { cwd: outDir }
+        );
 
         expect(targets).not.toEqual([]);
         expect(stderr).toBe('');

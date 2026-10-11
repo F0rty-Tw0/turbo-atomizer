@@ -43,15 +43,13 @@ const listedTestSchema = z.object({ projectName: z.string() });
 
 const listedSpecSchema = z.object({ tests: z.array(listedTestSchema) });
 
-const listedSuiteSchema: z.ZodType<ListedSuite> = z.lazy(() =>
-  {
+const listedSuiteSchema: z.ZodType<ListedSuite> = z.lazy(() => {
   return z.object({
     file: z.string(),
     specs: z.array(listedSpecSchema),
     suites: z.array(listedSuiteSchema).optional()
   });
-}
-);
+});
 
 const listedConfigMetadataSchema = z.object({ 'turbo-atomizer': atomizerMetadataSchema.optional() });
 

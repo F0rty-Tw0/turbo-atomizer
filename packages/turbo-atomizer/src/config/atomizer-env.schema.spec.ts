@@ -8,6 +8,7 @@ describe('FEATURE: atomizer env reader', (): void => {
     vi.stubEnv('TURBO_ATOMIZER_DESCRIBE', undefined);
     vi.stubEnv('TURBO_ATOMIZER_SERVER_ENV', undefined);
     vi.stubEnv('TURBO_ATOMIZER_COUNT_FILE', undefined);
+    vi.stubEnv('TURBO_ATOMIZER_ARGS', undefined);
   });
 
   afterEach((): void => {
@@ -15,10 +16,10 @@ describe('FEATURE: atomizer env reader', (): void => {
   });
 
   describe('GIVEN no TURBO_ATOMIZER* variables', (): void => {
-    it('WHEN the env is read THEN every flag is off and countFile is undefined', (): void => {
+    it('WHEN the env is read THEN every flag is off and countFile and args are undefined', (): void => {
       const env = getAtomizerEnv();
 
-      expect(env).toEqual({ active: false, captureServerEnv: false, countFile: undefined, describe: false });
+      expect(env).toEqual({ active: false, args: undefined, captureServerEnv: false, countFile: undefined, describe: false });
     });
   });
 
@@ -76,6 +77,16 @@ describe('FEATURE: atomizer env reader', (): void => {
       vi.stubEnv('TURBO_ATOMIZER_COUNT_FILE', '');
 
       expect(getAtomizerEnv).toThrow(/TURBO_ATOMIZER_COUNT_FILE/);
+    });
+  });
+
+  describe('GIVEN TURBO_ATOMIZER_ARGS set', (): void => {
+    it('WHEN the env is read THEN args is the raw value', (): void => {
+      vi.stubEnv('TURBO_ATOMIZER_ARGS', ' --grep @smoke ');
+
+      const env = getAtomizerEnv();
+
+      expect(env.args).toBe(' --grep @smoke ');
     });
   });
 });
