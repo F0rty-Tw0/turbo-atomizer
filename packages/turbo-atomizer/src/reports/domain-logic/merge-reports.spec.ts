@@ -262,6 +262,34 @@ describe('FEATURE: merge reports', (): void => {
     );
   });
 
+  describe('GIVEN a package whose generated turbo.json lists no file tasks', (): void => {
+    let copy: FixtureCopy;
+    let packageDir: string;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+      packageDir = await writeMergeFixture(copy.directory, []);
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it(
+      'WHEN the reports are merged THEN it warns and exits 0 without running a merge',
+      async (): Promise<void> => {
+        const spy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+
+        expect(exitCode).toBe(0);
+        expect(stderrText(spy.mock.calls)).toContain('no file tasks');
+        expect(runPlaywrightMerge).not.toHaveBeenCalled();
+      },
+      MERGE_TIMEOUT_MS
+    );
+  });
+
   describe('GIVEN a package without the generated turbo.json', (): void => {
     let copy: FixtureCopy;
     let packageDir: string;

@@ -1,8 +1,12 @@
 import { ATOMIZER_OUTPUT_DIR } from '../../shared/atomizer/common/atomizer.const.ts';
 import type { BlobCollection } from '../common/reports.type.ts';
 
+const NO_FILE_TASKS_WARNING = 'turbo-atomizer: the generated turbo.json lists no file tasks, so there is no blob report to merge.';
+
 /** Warns about file tasks that never ran (no `.atomizer/<slug>/`), which an `--affected` or filtered run explains. */
 export const blobCountWarning = (blobs: BlobCollection, taskCount: number): string | undefined => {
+  if (taskCount === 0) return NO_FILE_TASKS_WARNING;
+
   const neverRan = taskCount - blobs.copied - blobs.missing.length;
 
   if (neverRan === 0) return undefined;

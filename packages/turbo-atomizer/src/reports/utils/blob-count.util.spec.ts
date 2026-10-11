@@ -42,6 +42,16 @@ describe('FEATURE: blob count warning', () => {
     });
   });
 
+  describe('GIVEN no file tasks', () => {
+    it('WHEN the counts are compared THEN the warning says there is nothing to merge', () => {
+      const blobs: BlobCollection = { copied: 0, missing: [] };
+
+      const warning = blobCountWarning(blobs, 0);
+
+      expect(warning).toContain('no file tasks, so there is no blob report to merge');
+    });
+  });
+
   describe('GIVEN every file task without a blob ran', () => {
     it('WHEN the counts are compared THEN there is no --affected warning', () => {
       const blobs: BlobCollection = { copied: 1, missing: ['tests-b-spec-ts-222222'] };
