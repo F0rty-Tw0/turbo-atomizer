@@ -59,7 +59,7 @@ const guardZeroTests = async (run: SlugRun): Promise<number> => {
 
 /** Spec §6.3: runs one spec file's Playwright run in the test package `cwd` and returns the exit code. */
 export const runExec = async (argv: string[], cwd: string, deps: ExecDeps): Promise<number> => {
-  const execArgs = parseExecArgv(argv);
+  const execArgs = parseExecArgv(argv, []);
   const configFile = findConfigFile(cwd, execArgs);
 
   if (configFile === undefined) return failExec(`no Playwright config in ${cwd}; run from the test package`);

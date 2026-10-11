@@ -21,6 +21,12 @@ type AttachedValue = {
   readonly value: string;
 };
 
+const EXEC_FLAG_PREFIX = '--atomizer-';
+
+const FIXED_CONFIG_PREFIX = '--config=';
+
+const FIXED_FAIL_ON_FLAKY_FLAG = '--fail-on-flaky-tests';
+
 const isOptionLike = (token: string): boolean => {
   return token.length > 1 && token.startsWith('-');
 };
@@ -162,12 +168,32 @@ const isFilterArg = (arg: ParsedArg): boolean => {
   return arg.kind === 'positional' || isFilterOption;
 };
 
-export const parseExecArgv = (argv: string[]): ExecArgs => {
+const isForwardedArg = (token: string): boolean => {
+  const isExecFlag = token.startsWith(EXEC_FLAG_PREFIX);
+  const isFixedConfig = token.startsWith(FIXED_CONFIG_PREFIX);
+  const isFixedFailOnFlaky = token === FIXED_FAIL_ON_FLAKY_FLAG;
+
+  return !isExecFlag && !isFixedConfig && !isFixedFailOnFlaky;
+};
+
+/** Spec §6.3 step 5: `TURBO_ATOMIZER_ARGS` args go after the exec flags and fixed args sync generates, before the args turbo forwards. */
+const withEnvArgs = (rest: string[], envArgs: string[]): string[] => {
+  const forwardedIndex = rest.findIndex(isForwardedArg);
+  const fixedCount = forwardedIndex === -1 ? rest.length : forwardedIndex;
+  const fixedArgs = rest.slice(0, fixedCount);
+  const forwardedArgs = rest.slice(fixedCount);
+
+  return [...fixedArgs, ...envArgs, ...forwardedArgs];
+};
+
+/** Parses exec's argv; `envArgs` are the parsed `TURBO_ATOMIZER_ARGS`, read as one list with the forwarded args. */
+export const parseExecArgv = (argv: string[], envArgs: string[]): ExecArgs => {
   const [taskPath, listLine, ...rest] = argv;
 
   if (taskPath === undefined || listLine === undefined) throw new Error(`exec needs <task path> <list line>, got: ${argv.join(' ')}`);
 
-  const parsedArgs = parseArgs(rest);
+  const tokens = withEnvArgs(rest, envArgs);
+  const parsedArgs = parseArgs(tokens);
   const playwrightArgs = parsedArgs.filter(isPlaywrightArg).flatMap((arg) => arg.tokens);
   const forwardedReporters = parsedArgs.filter(isForwardedReporter).flatMap((arg) => arg.values);
   const configFiles = parsedArgs.filter(isConfigArg).flatMap((arg) => arg.values);
