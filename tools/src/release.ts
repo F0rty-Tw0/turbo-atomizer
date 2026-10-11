@@ -43,7 +43,10 @@ const datedChangelog = (text: string, version: string): string => {
   const date = new Date().toISOString().slice(0, 10);
   const hasHeading = text.includes(heading);
 
-  if (!hasHeading) throw new Error(`The first release ships the curated "${heading.trim()}" entry, but ${CHANGELOG_PATH} has none.`);
+  if (!hasHeading)
+    throw new Error(
+      `The first release ships the curated "${heading.trim()}" entry, but ${CHANGELOG_PATH} has none. Pick the bump that reaches the curated version.`
+    );
 
   return text.replace(heading, `## ${version} (${date})\n`);
 };

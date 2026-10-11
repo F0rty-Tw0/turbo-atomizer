@@ -53,6 +53,30 @@ describe('FEATURE: release driver', (): void => {
       });
     });
 
+    describe('WHEN a patch release is prepared', (): void => {
+      it('THEN it fails because 0.0.1 has no curated entry', (): void => {
+        const result = scenario.run('prepare', 'patch');
+
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain('"## 0.0.1 (unreleased)"');
+      });
+
+      it('THEN no release tag is created', (): void => {
+        scenario.run('prepare', 'patch');
+
+        const tags = scenario.tags();
+
+        expect(tags).toEqual([]);
+      });
+    });
+
+    it('WHEN a patch release is planned THEN it fails because 0.0.1 has no curated entry', (): void => {
+      const result = scenario.run('plan', 'patch');
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('"## 0.0.1 (unreleased)"');
+    });
+
     it('WHEN the bump is not patch, minor or major THEN it fails with usage', (): void => {
       const result = scenario.run('plan', 'huge');
 
