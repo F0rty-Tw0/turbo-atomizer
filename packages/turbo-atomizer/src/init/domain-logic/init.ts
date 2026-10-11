@@ -1,6 +1,7 @@
 import { relative } from 'node:path';
 
 import { planInit } from './init-preflight.ts';
+import { MERGE_CONFIG_FILE } from '../../reports/common/reports.const.ts';
 import { ATOMIZER_CONFIG_FILE, ATOMIZER_OUTPUT_DIR } from '../../shared/atomizer/common/atomizer.const.ts';
 import { writeAtomizerConfigFile } from '../../shared/config/data-access/atomizer-config.store.ts';
 import { listSpecs } from '../../shared/playwright/data-access/playwright-list.process.ts';
@@ -26,7 +27,7 @@ type InitChange = {
 
 const CLI_PACKAGE = 'turbo-atomizer';
 
-const GITIGNORE_LINES = [`${ATOMIZER_OUTPUT_DIR}/`, 'playwright.atomizer-merge.config.mjs'];
+const GITIGNORE_LINES = [`${ATOMIZER_OUTPUT_DIR}/`, MERGE_CONFIG_FILE];
 
 const experimentalTaskCommand: JsonEdit = { path: ['futureFlags', 'experimentalTaskCommand'], value: true };
 const affectedUsingTaskInputs: JsonEdit = { path: ['futureFlags', 'affectedUsingTaskInputs'], value: true };
