@@ -32,7 +32,14 @@ describe('FEATURE: atom task', () => {
       });
 
       it('THEN the command runs exec with the task path, the list line and the config file', () => {
-        const command = ['node', '-e', "require('turbo-atomizer/exec')", 'tests/login.spec.ts', 'login.spec.ts', '--config=playwright.config.ts'];
+        const command = [
+          'node',
+          '-e',
+          "require('turbo-atomizer/exec')",
+          'tests/login.spec.ts',
+          'login.spec.ts',
+          '--config=playwright.config.ts'
+        ];
 
         const { file } = buildAtomTask(ATOM_TASK_INPUT_STUB);
 
