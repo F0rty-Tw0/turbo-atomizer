@@ -22,14 +22,16 @@ const gitIn = (workspace: string): Git => {
   };
 };
 
-/** The fixture plus the repository's real `nx.json` and `CHANGELOG.md`, committed with signing off. */
+/**
+ * The fixture plus the repository's real `nx.json`, committed with signing off. The changelog is
+ * the fixture's, because the real one loses its `(unreleased)` heading once 0.1.0 ships.
+ */
 const createWorkspace = (workspace: string, git: Git): void => {
   const fixture = resolve(import.meta.dirname, '../fixtures/release-workspace');
   const linkType = process.platform === 'win32' ? 'junction' : 'dir';
 
   cpSync(fixture, workspace, { recursive: true });
   copyFileSync(join(repository, 'nx.json'), join(workspace, 'nx.json'));
-  copyFileSync(join(repository, CHANGELOG), join(workspace, CHANGELOG));
   symlinkSync(join(repository, 'node_modules'), join(workspace, 'node_modules'), linkType);
   git('init', '--quiet');
   git('config', 'user.name', 'Release Scenario');
