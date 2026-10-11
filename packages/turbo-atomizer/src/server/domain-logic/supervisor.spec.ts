@@ -90,18 +90,22 @@ describe('FEATURE: supervisor', (): void => {
   });
 
   describe('GIVEN a free rendezvous and a package with idleMs 500', (): void => {
-    it('WHEN one client is served and leaves THEN the supervisor exits and frees the rendezvous', async (): Promise<void> => {
-      const run = runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
+    it(
+      'WHEN one client is served and leaves THEN the supervisor exits and frees the rendezvous',
+      async (): Promise<void> => {
+        const run = runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
 
-      const client = await connectWhenListening(socketPath);
-      const message = await readyMessage(client);
+        const client = await connectWhenListening(socketPath);
+        const message = await readyMessage(client);
 
-      client.destroy();
-      await run;
+        client.destroy();
+        await run;
 
-      expect(message.state).toBe('ready');
-      await expect(exists(socketPath)).resolves.toBe(false);
-      await expect(exists(lockPathOf(socketPath))).resolves.toBe(false);
-    }, RUN_TIMEOUT_MS);
+        expect(message.state).toBe('ready');
+        await expect(exists(socketPath)).resolves.toBe(false);
+        await expect(exists(lockPathOf(socketPath))).resolves.toBe(false);
+      },
+      RUN_TIMEOUT_MS
+    );
   });
 });

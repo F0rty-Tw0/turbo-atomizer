@@ -24,8 +24,7 @@ export type AtomizerConfig = {
 
 type PackageDerivedField = 'generatedPackage' | 'playwrightConfig';
 
-export type ParsedAtomizerConfig = Omit<AtomizerConfig, PackageDerivedField> &
-  Partial<Pick<AtomizerConfig, PackageDerivedField>>;
+export type ParsedAtomizerConfig = Omit<AtomizerConfig, PackageDerivedField> & Partial<Pick<AtomizerConfig, PackageDerivedField>>;
 
 export type AtomizerConfigSource = 'default' | 'file' | 'package-json';
 

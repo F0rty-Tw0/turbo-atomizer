@@ -1,1 +1,4 @@
-{ "name": "no-config", "private": true }
+{
+  "name": "no-config",
+  "private": true
+}

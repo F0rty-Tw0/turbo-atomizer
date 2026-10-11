@@ -1,5 +1,7 @@
 {
   "name": "both-configs",
   "private": true,
-  "turbo-atomizer": { "task": "smoke" }
+  "turbo-atomizer": {
+    "task": "smoke"
+  }
 }

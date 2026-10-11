@@ -53,34 +53,46 @@ describe('FEATURE: server lease', (): void => {
   });
 
   describe('GIVEN a fresh copy without .atomizer/', (): void => {
-    it('WHEN one exec leases the server THEN .atomizer/server.log is created and the lease is ready', async (): Promise<void> => {
-      const held = await lease(copy.directory);
+    it(
+      'WHEN one exec leases the server THEN .atomizer/server.log is created and the lease is ready',
+      async (): Promise<void> => {
+        const held = await lease(copy.directory);
 
-      held.release();
-      expect(held.env).toEqual({});
-      expect(existsSync(join(copy.directory, '.atomizer/server.log'))).toBe(true);
-    }, CASE_TIMEOUT_MS);
+        held.release();
+        expect(held.env).toEqual({});
+        expect(existsSync(join(copy.directory, '.atomizer/server.log'))).toBe(true);
+      },
+      CASE_TIMEOUT_MS
+    );
 
-    it('WHEN 10 execs lease at once THEN the server process starts exactly once', async (): Promise<void> => {
-      const requests = Array.from({ length: CONCURRENT_EXECS }, async (): Promise<ServerLease> => lease(copy.directory));
+    it(
+      'WHEN 10 execs lease at once THEN the server process starts exactly once',
+      async (): Promise<void> => {
+        const requests = Array.from({ length: CONCURRENT_EXECS }, async (): Promise<ServerLease> => lease(copy.directory));
 
-      const leases = await Promise.all(requests);
+        const leases = await Promise.all(requests);
 
-      releaseAll(leases);
-      await expect(startedPids(copy.directory)).resolves.toHaveLength(1);
-    }, CASE_TIMEOUT_MS);
+        releaseAll(leases);
+        await expect(startedPids(copy.directory)).resolves.toHaveLength(1);
+      },
+      CASE_TIMEOUT_MS
+    );
 
-    it('WHEN every lease is released THEN the server pid is gone within idleMs + 6 s', async (): Promise<void> => {
-      const leases = await Promise.all([lease(copy.directory), lease(copy.directory)]);
-      const [pid = 0] = await startedPids(copy.directory);
+    it(
+      'WHEN every lease is released THEN the server pid is gone within idleMs + 6 s',
+      async (): Promise<void> => {
+        const leases = await Promise.all([lease(copy.directory), lease(copy.directory)]);
+        const [pid = 0] = await startedPids(copy.directory);
 
-      releaseAll(leases);
+        releaseAll(leases);
 
-      const isGone = await waitUntil((): boolean => !isAlive(pid), IDLE_MS + STOP_GRACE_MS);
+        const isGone = await waitUntil((): boolean => !isAlive(pid), IDLE_MS + STOP_GRACE_MS);
 
-      expect(isGone).toBe(true);
-      await expect(supervisorExited()).resolves.toBe(true);
-    }, CASE_TIMEOUT_MS);
+        expect(isGone).toBe(true);
+        await expect(supervisorExited()).resolves.toBe(true);
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a server already running on the port', (): void => {
@@ -94,65 +106,85 @@ describe('FEATURE: server lease', (): void => {
       await existing.stop();
     });
 
-    it('WHEN it is leased and released THEN it is reused and still alive after the supervisor exits', async (): Promise<void> => {
-      const held = await lease(copy.directory);
+    it(
+      'WHEN it is leased and released THEN it is reused and still alive after the supervisor exits',
+      async (): Promise<void> => {
+        const held = await lease(copy.directory);
 
-      held.release();
+        held.release();
 
-      const hasExited = await supervisorExited();
+        const hasExited = await supervisorExited();
 
-      expect(hasExited).toBe(true);
-      await expect(startedPids(copy.directory)).resolves.toEqual([]);
-      expect(isAlive(existing.pid)).toBe(true);
-    }, CASE_TIMEOUT_MS);
+        expect(hasExited).toBe(true);
+        await expect(startedPids(copy.directory)).resolves.toEqual([]);
+        expect(isAlive(existing.pid)).toBe(true);
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a webServer command that exits 1', (): void => {
-    it('WHEN 3 execs lease at once THEN every one rejects with the log tail', async (): Promise<void> => {
-      vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'exit1');
+    it(
+      'WHEN 3 execs lease at once THEN every one rejects with the log tail',
+      async (): Promise<void> => {
+        vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'exit1');
 
-      const results = await Promise.allSettled([lease(copy.directory), lease(copy.directory), lease(copy.directory)]);
-      const reasons = results.map((result): unknown => (result.status === 'rejected' ? result.reason : undefined));
+        const results = await Promise.allSettled([lease(copy.directory), lease(copy.directory), lease(copy.directory)]);
+        const reasons = results.map((result): unknown => (result.status === 'rejected' ? result.reason : undefined));
 
-      for (const reason of reasons) {
-        expect(reason).toBeInstanceOf(ServerFailedException);
-        expect(reason).toHaveProperty('logTail', expect.stringContaining('fixture server failed'));
-      }
-    }, CASE_TIMEOUT_MS);
+        for (const reason of reasons) {
+          expect(reason).toBeInstanceOf(ServerFailedException);
+          expect(reason).toHaveProperty('logTail', expect.stringContaining('fixture server failed'));
+        }
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a webServer with neither url nor port', (): void => {
-    it('WHEN an exec leases it THEN it rejects before any server is spawned', async (): Promise<void> => {
-      vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'no-url');
+    it(
+      'WHEN an exec leases it THEN it rejects before any server is spawned',
+      async (): Promise<void> => {
+        vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'no-url');
 
-      const request = lease(copy.directory);
+        const request = lease(copy.directory);
 
-      await expect(request).rejects.toThrow('neither url nor port');
-      await expect(startedPids(copy.directory)).resolves.toEqual([]);
-    }, CASE_TIMEOUT_MS);
+        await expect(request).rejects.toThrow('neither url nor port');
+        await expect(startedPids(copy.directory)).resolves.toEqual([]);
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a stale lock whose owner pid is dead', (): void => {
-    it('WHEN an exec leases the server THEN the lock is taken over and the lease is ready', async (): Promise<void> => {
-      const deadPid = await exitedPid();
+    it(
+      'WHEN an exec leases the server THEN the lock is taken over and the lease is ready',
+      async (): Promise<void> => {
+        const deadPid = await exitedPid();
 
-      await writeFile(lockPath, JSON.stringify({ pid: deadPid, startTime: 'gone' }));
+        await writeFile(lockPath, JSON.stringify({ pid: deadPid, startTime: 'gone' }));
 
-      const held = await lease(copy.directory);
+        const held = await lease(copy.directory);
 
-      held.release();
-      expect(held.env).toEqual({});
-    }, CASE_TIMEOUT_MS);
+        held.release();
+        expect(held.env).toEqual({});
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a stale socket file with no listener', (): void => {
-    it('WHEN an exec leases the server THEN the refused socket is replaced and the lease is ready', async (): Promise<void> => {
-      await createStaleSocket(socketPath);
+    it(
+      'WHEN an exec leases the server THEN the refused socket is replaced and the lease is ready',
+      async (): Promise<void> => {
+        await createStaleSocket(socketPath);
 
-      const held = await lease(copy.directory);
+        const held = await lease(copy.directory);
 
-      held.release();
-      expect(held.env).toEqual({});
-    }, CASE_TIMEOUT_MS);
+        held.release();
+        expect(held.env).toEqual({});
+      },
+      CASE_TIMEOUT_MS
+    );
   });
 });

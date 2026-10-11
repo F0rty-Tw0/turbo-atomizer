@@ -33,7 +33,12 @@ const connectWithBackoff = async (socketPath: string): Promise<Socket> => {
 };
 
 /** Spec §7 Start step 1: connect, or spawn the supervisor and retry with backoff. */
-const connectSupervisor = async (socketPath: string, packageDir: string, configFile: string, supervisorPath: string): Promise<Socket> => {
+const connectSupervisor = async (
+  socketPath: string,
+  packageDir: string,
+  configFile: string,
+  supervisorPath: string
+): Promise<Socket> => {
   const existing = await tryConnect(socketPath);
 
   if (existing !== undefined) return existing;

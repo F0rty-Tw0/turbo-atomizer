@@ -1,7 +1,9 @@
 {
   "name": "acme",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "devDependencies": {
     "turbo": "2.11.7"
   }

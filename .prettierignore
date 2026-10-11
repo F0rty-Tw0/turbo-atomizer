@@ -5,3 +5,5 @@
 /.nx/workspace-data
 # Expected generator output, compared byte for byte
 /packages/turbo-atomizer/src/sync/test/fixtures
+# Fixtures that are invalid JSON on purpose
+**/test/fixtures/broken-json/
