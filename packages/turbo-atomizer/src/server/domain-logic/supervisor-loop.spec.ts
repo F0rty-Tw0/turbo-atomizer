@@ -121,6 +121,32 @@ describe('FEATURE: supervisor loop', (): void => {
       },
       LOOP_TIMEOUT_MS
     );
+
+    it(
+      'WHEN the server dies after ready THEN the leased client hears failed and a new client is answered failed',
+      async (): Promise<void> => {
+        const loop = await listen(options);
+        const leased = await connectSocket(socketPath);
+
+        await messagesUntilAnswer(leased);
+
+        const broadcast = messagesUntilAnswer(leased);
+        const pid = await serverPid(copy.directory);
+
+        process.kill(pid, 'SIGKILL');
+        await broadcast;
+
+        const late = await connectSocket(socketPath);
+        const messages = await messagesUntilAnswer(late);
+
+        leased.destroy();
+        late.destroy();
+        await loop.done;
+        expect(messages.at(-1)?.state).toBe('failed');
+        expect(messages.at(-1)).toHaveProperty('message', expect.stringContaining('after it was ready'));
+      },
+      LOOP_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a startup failure', (): void => {

@@ -110,9 +110,35 @@ export class SupervisorLoop {
 
     this.servers = outcome.servers;
 
-    if (outcome.ok) return void this.dispatch({ type: 'serversReady', env: outcome.env });
+    if (!outcome.ok) return void this.dispatch({ type: 'serverFailed', message: outcome.message, logTail: outcome.logTail });
 
-    this.dispatch({ type: 'serverFailed', message: outcome.message, logTail: outcome.logTail });
+    for (const server of outcome.servers) this.watchExit(server);
+
+    this.dispatch({ type: 'serversReady', env: outcome.env });
+  }
+
+  /** A server that dies after `ready` fails the supervisor, so no later lease is handed a dead port; one being stopped is ignored. */
+  private watchExit(server: RunningServer): void {
+    const { child, fact } = server;
+
+    const onClose = (code: number | null, signal: NodeJS.Signals | null): void => {
+      const isCurrent = this.servers.includes(server);
+
+      if (!isCurrent) return;
+
+      const byCode = `code ${String(code)}`;
+      const bySignal = `signal ${String(signal)}`;
+      const exit = signal === null ? byCode : bySignal;
+      const message = `webServer "${fact.command}" exited with ${exit} after it was ready; see .atomizer/server.log`;
+
+      this.dispatch({ type: 'serverFailed', message, logTail: '' });
+    };
+
+    const hasExited = child.exitCode !== null || child.signalCode !== null;
+
+    if (hasExited) return void onClose(child.exitCode, child.signalCode);
+
+    child.once('close', onClose);
   }
 
   private async stopServers(): Promise<void> {
