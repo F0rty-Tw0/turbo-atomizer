@@ -1,10 +1,22 @@
+import { constants } from 'node:os';
 import { join } from 'node:path';
 
+import { toExitCode } from '../../exec/utils/exit-code.util.ts';
 import { loadAtomizerConfig } from '../../shared/config/domain-logic/atomizer-config.ts';
+import { turboQueryAffectedTasks } from '../../shared/turbo/data-access/turbo-query.process.ts';
+import { runTurbo } from '../../shared/turbo/data-access/turbo-run.process.ts';
 import { findWorkspaceRoot } from '../../shared/turbo/data-access/workspace-root.store.ts';
 import { readPackageName } from '../../shared/workspace/data-access/package-name.store.ts';
 import type { AffectedDeps } from '../common/affected.type.ts';
 import { selectPackageTasks, toTurboRunArgs } from '../utils/affected-tasks.util.ts';
+
+const runTurboTasks = async (root: string, args: string[]): Promise<number> => {
+  const exit = await runTurbo(root, args);
+
+  return toExitCode(exit.code, exit.signal, constants.signals);
+};
+
+export const TURBO_AFFECTED_DEPS: AffectedDeps = { queryAffectedTasks: turboQueryAffectedTasks, runTurbo: runTurboTasks };
 
 const failAffected = (message: string): number => {
   process.stderr.write(`turbo-atomizer affected: ${message}\n`);
