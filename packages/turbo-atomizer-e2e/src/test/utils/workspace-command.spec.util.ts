@@ -21,13 +21,17 @@ const definedEntries = (env: NodeJS.ProcessEnv): [string, string][] => {
   return entries;
 };
 
+const isPathKey = (key: string): boolean => key.toUpperCase() === 'PATH';
+
 /** The vitest env minus the dropped keys, plus the workspace bins first on PATH. */
 const commandEnv = (root: string, overrides: CommandEnv): CommandEnv => {
   const inherited = Object.fromEntries(definedEntries(process.env));
-  const outerPath = process.env['PATH'] ?? '';
+  // Windows spells it `Path`; a second `PATH` key would leave the child with either one
+  const pathKey = Object.keys(inherited).find(isPathKey) ?? 'PATH';
+  const outerPath = inherited[pathKey] ?? '';
   const binDir = join(root, 'node_modules', '.bin');
   const path = `${binDir}${delimiter}${outerPath}`;
-  const env: CommandEnv = { ...inherited, ...QUIET_ENV, ...GIT_ENV, PATH: path, ...overrides };
+  const env: CommandEnv = { ...inherited, ...QUIET_ENV, ...GIT_ENV, [pathKey]: path, ...overrides };
 
   return env;
 };
@@ -57,6 +61,9 @@ export const runCommand = async (root: string, command: string, overrides: Comma
     child.on('close', settle);
   });
 };
+
+/** `path` in double quotes for the shell; backslashes stay as they are, which Windows paths need. */
+export const quotedPath = (path: string): string => `"${path}"`;
 
 /** Everything a command printed, for assertion messages that explain a failed run. */
 export const outputOf = (result: RunResult): string => `${result.stdout}${result.stderr}`;

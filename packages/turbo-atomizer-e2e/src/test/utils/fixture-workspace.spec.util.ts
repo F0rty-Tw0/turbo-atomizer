@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 
 import { freePorts } from './free-port.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
-import { runChecked, runCommand } from './workspace-command.spec.util.ts';
+import { quotedPath, runChecked, runCommand } from './workspace-command.spec.util.ts';
 import { settleWorkspaceProcesses } from './workspace-processes.spec.util.ts';
 import { INSTALL_COMMANDS, MAX_FIXTURE_PORTS, PORT_PLACEHOLDER, PROCESS_SETTLE_MS } from '../common/fixture-workspace.const.ts';
 import type {
@@ -51,9 +51,14 @@ const fillPorts = async (root: string): Promise<void> => {
   await Promise.all(files.map(async (file): Promise<void> => fillFilePorts(file, ports)));
 };
 
+// Windows can hold a file briefly after its process exits
+const RM_RETRIES = 5;
+
+const RM_RETRY_DELAY_MS = 200;
+
 /** Packs the built package into `root` and returns the tarball's file name. */
 const packAtomizer = async (root: string): Promise<string> => {
-  const result = await runChecked(root, `npm pack ${JSON.stringify(ATOMIZER_DIST)} --pack-destination . --json`);
+  const result = await runChecked(root, `npm pack ${quotedPath(ATOMIZER_DIST)} --pack-destination . --json`);
   const raw: unknown = JSON.parse(result.stdout);
   const [packed] = npmPackSchema.parse(raw);
 
@@ -110,7 +115,7 @@ const workspaceAt = (root: string): FixtureWorkspace => {
 
   const dispose = async (): Promise<void> => {
     await settleWorkspaceProcesses(root, PROCESS_SETTLE_MS);
-    await rm(root, { force: true, recursive: true });
+    await rm(root, { force: true, recursive: true, maxRetries: RM_RETRIES, retryDelay: RM_RETRY_DELAY_MS });
   };
 
   const workspace: FixtureWorkspace = { root, run, read, edit, remove, commit, taskHashes, dispose };

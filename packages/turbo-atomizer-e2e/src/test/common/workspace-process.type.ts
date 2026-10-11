@@ -1,0 +1,22 @@
+/** A running process; `cwd` is '' where the platform does not expose it (macOS `ps`, Windows). */
+export type ProcessEntry = {
+  readonly pid: number;
+  readonly commandLine: string;
+  readonly cwd: string;
+};
+
+/** One row of `Get-CimInstance Win32_Process`; `commandLine` is '' when Windows hides it. */
+export type WindowsProcess = {
+  readonly pid: number;
+  readonly parentPid: number;
+  readonly name: string;
+  readonly commandLine: string;
+};
+
+/** A raw `Win32_Process` row as PowerShell's `ConvertTo-Json` prints it. */
+export type Win32Process = {
+  readonly ProcessId: number;
+  readonly ParentProcessId: number;
+  readonly Name: string;
+  readonly CommandLine: string | null;
+};
