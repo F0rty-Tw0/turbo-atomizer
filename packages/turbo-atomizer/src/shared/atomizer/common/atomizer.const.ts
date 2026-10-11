@@ -19,6 +19,9 @@ export const TURBO_ATOMIZER_ARGS_ENV = 'TURBO_ATOMIZER_ARGS';
 
 export const DEFAULT_TASK = 'e2e-ci';
 
+/** Per-package output dir; each file task writes to `.atomizer/<slug>/`. */
+export const ATOMIZER_OUTPUT_DIR = '.atomizer';
+
 export const DEFAULT_SPEC_GLOBS = ['**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'];
 
 export const DEFAULT_SNAPSHOT_GLOBS = ['**/*-snapshots/**'];
@@ -49,6 +52,12 @@ export const ATOMIZER_CARRIER_TAG = 'atomizer:carrier';
 
 /** Tag on live (uncached-pattern) file tasks; part of the Console contract. */
 export const ATOMIZER_LIVE_TAG = 'atomizer:live';
+
+/** Prefix of the per-group file-task tag `atomizer:<task>`; part of the Console contract (spec §9). */
+export const ATOMIZER_TASK_TAG_PREFIX = 'atomizer:';
+
+/** exec flag: add a blob reporter because the config has none (spec §6.2 step 5). */
+export const ATOMIZER_BLOB_FLAG = '--atomizer-blob';
 
 /** Carrier task name infix: `<task>-src--<task path>`; file tasks always start `<task>--` (spec §4). */
 export const CARRIER_TASK_INFIX = '-src--';
