@@ -24,13 +24,13 @@ describe('FEATURE: doctor checks', (): void => {
       expect(findings).toMatchObject([{ level: 'error', code: 'stale-generated' }]);
     });
 
-    it('WHEN the diff is empty THEN there are no findings', (): void => {
+    it('WHEN only carriers or formatting changed THEN a stale-generated error is still returned', (): void => {
       const stale: AtomsDiff = { added: [], removed: [], changed: [] };
       const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, stale };
 
       const findings = runDoctorChecks(facts);
 
-      expect(findings).toEqual([]);
+      expect(findings).toMatchObject([{ level: 'error', code: 'stale-generated' }]);
     });
   });
 
@@ -74,13 +74,21 @@ describe('FEATURE: doctor checks', (): void => {
     });
   });
 
-  describe('GIVEN the root future flag is missing', (): void => {
-    it('WHEN the checks run THEN a root-flag-missing error is returned', (): void => {
-      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, rootFlagSet: false };
+  describe('GIVEN a root turbo.json missing a future flag', (): void => {
+    it('WHEN experimentalTaskCommand is missing THEN a root-flag-missing error is returned', (): void => {
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, taskCommandFlagSet: false };
 
       const findings = runDoctorChecks(facts);
 
       expect(findings).toMatchObject([{ level: 'error', code: 'root-flag-missing' }]);
+    });
+
+    it('WHEN affectedUsingTaskInputs is missing THEN an affected-flag-missing warning is returned', (): void => {
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, affectedFlagSet: false };
+
+      const findings = runDoctorChecks(facts);
+
+      expect(findings).toMatchObject([{ level: 'warning', code: 'affected-flag-missing' }]);
     });
   });
 

@@ -23,10 +23,6 @@ const staleFindings = (stale: AtomsDiff | undefined): DoctorFinding[] => {
   if (stale === undefined) return [];
 
   const { added, removed, changed } = stale;
-  const isEmpty = added.length + removed.length + changed.length === 0;
-
-  if (isEmpty) return [];
-
   const counts = `${String(added.length)} added, ${String(removed.length)} removed, ${String(changed.length)} changed`;
 
   return [error('stale-generated', `The generated file tasks are stale (${counts}); run \`turbo-atomizer sync\`.`)];
@@ -69,10 +65,19 @@ const turboJsonFindings = (facts: DoctorFacts): DoctorFinding[] => {
   return findings;
 };
 
-const flagFindings = (rootFlagSet: boolean): DoctorFinding[] => {
-  if (rootFlagSet) return [];
+const flagFindings = (facts: DoctorFacts): DoctorFinding[] => {
+  const message =
+    'The root turbo.json lacks `futureFlags.affectedUsingTaskInputs: true`; `turbo-atomizer affected` then runs every file task of an affected package.';
+  const affectedWarning: DoctorFinding = { level: 'warning', code: 'affected-flag-missing', message };
+  const findings: DoctorFinding[] = [];
 
-  return [error('root-flag-missing', 'The root turbo.json lacks `futureFlags.experimentalTaskCommand: true`; file tasks need it.')];
+  if (!facts.taskCommandFlagSet) {
+    findings.push(error('root-flag-missing', 'The root turbo.json lacks `futureFlags.experimentalTaskCommand: true`; file tasks need it.'));
+  }
+
+  if (!facts.affectedFlagSet) findings.push(affectedWarning);
+
+  return findings;
 };
 
 const toVersionFinding = (peerFinding: PeerVersionFinding): DoctorFinding => {
@@ -102,7 +107,7 @@ export const runDoctorChecks = (facts: DoctorFacts): DoctorFinding[] => {
   const generatedFindings = staleFindings(facts.stale);
   const configFindings = helperFindings(facts);
   const testTurboJsonFindings = turboJsonFindings(facts);
-  const rootFlagFindings = flagFindings(facts.rootFlagSet);
+  const rootFlagFindings = flagFindings(facts);
   const versionFindings = peerFindings.map(toVersionFinding);
   const specFindings = facts.rejectedSpecs.map(rejectedFinding);
   const metadataFindings = metadataChecks(facts);

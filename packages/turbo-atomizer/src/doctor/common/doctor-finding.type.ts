@@ -2,6 +2,7 @@ type DoctorFindingLevel = 'error' | 'warning';
 
 /** Stable finding codes; scripts may match on them. */
 type DoctorFindingCode =
+  | 'affected-flag-missing'
   | 'app-dependency-missing'
   | 'custom-reporter'
   | 'custom-snapshot-path'

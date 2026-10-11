@@ -22,12 +22,14 @@ export type OutsideImport = {
 export type DoctorFacts = {
   readonly packageDir: string;
   readonly task: string;
+  /** The file-task diff when the generated turbo.json differs from a fresh sync (`sync --check` fails); `undefined` when current. */
   readonly stale: AtomsDiff | undefined;
   readonly rejectedSpecs: string[];
   readonly metadata: AtomizerMetadata | undefined;
   readonly testTurboJson: TurboJsonDoc | undefined;
   readonly generatedName: string;
-  readonly rootFlagSet: boolean;
+  readonly taskCommandFlagSet: boolean;
+  readonly affectedFlagSet: boolean;
   readonly versions: DoctorVersions;
   readonly dependsOn: string[];
   readonly dependencyTasks: PackageTasks[];
