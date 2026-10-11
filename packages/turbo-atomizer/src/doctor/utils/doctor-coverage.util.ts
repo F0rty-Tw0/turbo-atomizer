@@ -5,9 +5,16 @@ import type { DoctorFacts, OutsideImport } from '../common/doctor-facts.type.ts'
 import type { DoctorFinding } from '../common/doctor-finding.type.ts';
 import { TURBO_ROOT_PREFIX } from '../common/doctor.const.ts';
 
+type InputGlobs = {
+  readonly included: string[];
+  readonly excluded: string[];
+};
+
 const PACKAGE_TASK_SEPARATOR = '#';
 
 const DEPENDENCY_PREFIX = '^';
+
+const NEGATION_PREFIX = '!';
 
 const hasDependencyTask = (entry: string, dependency: PackageTasks): boolean => {
   const isUpstream = entry.startsWith(DEPENDENCY_PREFIX);
@@ -47,28 +54,46 @@ const appFindings = (facts: DoctorFacts): DoctorFinding[] => {
   return [finding];
 };
 
-/** Turns an `extraInputs` entry into a glob relative to the workspace root; negated entries cover nothing. */
-const rootGlob = (entry: string, packageDir: string): string | undefined => {
-  const isNegated = entry.startsWith('!');
+/** Turns an `extraInputs` entry, without its `!`, into a glob relative to the workspace root. */
+const rootGlob = (entry: string, packageDir: string): string => {
   const isRootRelative = entry.startsWith(TURBO_ROOT_PREFIX);
-
-  if (isNegated) return undefined;
 
   if (isRootRelative) return entry.slice(TURBO_ROOT_PREFIX.length);
 
   return posix.join(packageDir, entry);
 };
 
+/** Splits `extraInputs` the way turbo applies them: a file is an input when a glob includes it and no negated glob excludes it. */
+const inputGlobs = (facts: DoctorFacts): InputGlobs => {
+  const isNegated = (entry: string): boolean => entry.startsWith(NEGATION_PREFIX);
+  const isIncluding = (entry: string): boolean => !isNegated(entry);
+  const toIncludedGlob = (entry: string): string => rootGlob(entry, facts.packageDir);
+  const toExcludedGlob = (entry: string): string => rootGlob(entry.slice(NEGATION_PREFIX.length), facts.packageDir);
+  const included = facts.extraInputs.filter(isIncluding).map(toIncludedGlob);
+  const excluded = facts.extraInputs.filter(isNegated).map(toExcludedGlob);
+  const globs: InputGlobs = { included, excluded };
+
+  return globs;
+};
+
+const isInputFile = (file: string, globs: InputGlobs): boolean => {
+  const matchesFile = (glob: string): boolean => posix.matchesGlob(file, glob);
+  const isIncluded = globs.included.some(matchesFile);
+  const isExcluded = globs.excluded.some(matchesFile);
+
+  return isIncluded && !isExcluded;
+};
+
 const isInDependency = (file: string, dependencies: PackageTasks[]): boolean => {
   return dependencies.some((dependency): boolean => file.startsWith(`${dependency.dir}/`));
 };
 
-const isUncoveredImport = (outsideImport: OutsideImport, facts: DoctorFacts, globs: string[]): boolean => {
+const isUncoveredImport = (outsideImport: OutsideImport, facts: DoctorFacts, globs: InputGlobs): boolean => {
   const isDependencyFile = isInDependency(outsideImport.file, facts.dependencyTasks);
 
   if (isDependencyFile) return false;
 
-  return !globs.some((glob): boolean => posix.matchesGlob(outsideImport.file, glob));
+  return !isInputFile(outsideImport.file, globs);
 };
 
 const outsideImportFinding = (outsideImport: OutsideImport): DoctorFinding => {
@@ -78,11 +103,8 @@ const outsideImportFinding = (outsideImport: OutsideImport): DoctorFinding => {
   return finding;
 };
 
-const isGlob = (glob: string | undefined): glob is string => glob !== undefined;
-
 const importFindings = (facts: DoctorFacts): DoctorFinding[] => {
-  const toRootGlob = (entry: string): string | undefined => rootGlob(entry, facts.packageDir);
-  const globs = facts.extraInputs.map(toRootGlob).filter(isGlob);
+  const globs = inputGlobs(facts);
   const isUncovered = (outsideImport: OutsideImport): boolean => isUncoveredImport(outsideImport, facts, globs);
   const uncovered = facts.outsideImports.filter(isUncovered);
 

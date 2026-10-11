@@ -136,5 +136,21 @@ describe('FEATURE: doctor coverage checks', (): void => {
 
       expect(findings).toMatchObject([{ code: 'outside-import' }]);
     });
+
+    it('WHEN an extraInputs glob covers it but a negated entry excludes it THEN an outside-import error is returned', (): void => {
+      const facts: DoctorFacts = { ...importFacts, extraInputs: ['$TURBO_ROOT$/shared/**', '!$TURBO_ROOT$/shared/x.ts'] };
+
+      const findings = checkCoverage(facts);
+
+      expect(findings).toMatchObject([{ code: 'outside-import' }]);
+    });
+
+    it('WHEN a negated entry excludes only another file THEN there are no findings', (): void => {
+      const facts: DoctorFacts = { ...importFacts, extraInputs: ['$TURBO_ROOT$/shared/**', '!../../shared/y.ts'] };
+
+      const findings = checkCoverage(facts);
+
+      expect(findings).toEqual([]);
+    });
   });
 });
