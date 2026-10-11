@@ -60,12 +60,24 @@ const isInputFile = (file: string, globs: InputGlobs): boolean => {
   return isIncluded && !isExcluded;
 };
 
-const isInDependency = (file: string, dependencies: PackageTasks[]): boolean => {
-  return dependencies.some((dependency): boolean => file.startsWith(`${dependency.dir}/`));
+/** Only a dependency with a task matched by `dependsOn` puts its files into the file hashes. */
+const hasMatchedTask = (dependency: PackageTasks, dependsOn: string[]): boolean => {
+  return dependsOn.some((entry): boolean => hasDependencyTask(entry, dependency));
+};
+
+const isInDependency = (file: string, facts: DoctorFacts): boolean => {
+  const isHashedDependencyFile = (dependency: PackageTasks): boolean => {
+    const isInDir = file.startsWith(`${dependency.dir}/`);
+    const isHashed = hasMatchedTask(dependency, facts.dependsOn);
+
+    return isInDir && isHashed;
+  };
+
+  return facts.dependencyTasks.some(isHashedDependencyFile);
 };
 
 const isUncoveredImport = (outsideImport: OutsideImport, facts: DoctorFacts, globs: InputGlobs): boolean => {
-  const isDependencyFile = isInDependency(outsideImport.file, facts.dependencyTasks);
+  const isDependencyFile = isInDependency(outsideImport.file, facts);
 
   if (isDependencyFile) return false;
 
@@ -81,10 +93,7 @@ const reachesOutsidePackage = (facts: DoctorFacts): boolean => {
 };
 
 const isAppCovered = (facts: DoctorFacts): boolean => {
-  const isCoveredBy = (entry: string): boolean =>
-    facts.dependencyTasks.some((dependency): boolean => hasDependencyTask(entry, dependency));
-
-  return facts.dependsOn.some(isCoveredBy);
+  return facts.dependencyTasks.some((dependency): boolean => hasMatchedTask(dependency, facts.dependsOn));
 };
 
 const appFindings = (facts: DoctorFacts): DoctorFinding[] => {
@@ -105,7 +114,7 @@ const appFindings = (facts: DoctorFacts): DoctorFinding[] => {
 };
 
 const outsideImportFinding = (outsideImport: OutsideImport): DoctorFinding => {
-  const message = `${outsideImport.spec} imports ${outsideImport.file}, which is outside the test package, in no workspace dependency and not covered by extraInputs; its changes would not invalidate the cache. Add its package as a dependency or list it in extraInputs.`;
+  const message = `${outsideImport.spec} imports ${outsideImport.file}, which is outside the test package, in no workspace dependency with a task matched by dependsOn and not covered by extraInputs; its changes would not invalidate the cache. Add its package as a dependency or list it in extraInputs.`;
   const finding: DoctorFinding = { level: 'error', code: 'outside-import', message };
 
   return finding;

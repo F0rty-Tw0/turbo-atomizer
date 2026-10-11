@@ -128,6 +128,16 @@ describe('FEATURE: doctor coverage checks', (): void => {
       expect(findings).toEqual([]);
     });
 
+    it('WHEN the file is in a workspace dependency without a task matched by dependsOn THEN an outside-import error is returned', (): void => {
+      const appImport: OutsideImport = { spec: 'tests/a.spec.ts', file: 'apps/web/src/routes.ts' };
+      const startOnly: PackageTasks = { ...WEB_PACKAGE_TASKS_STUB, tasks: ['start'] };
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, outsideImports: [appImport], dependencyTasks: [startOnly] };
+
+      const findings = checkCoverage(facts);
+
+      expect(findings).toMatchObject([{ code: 'outside-import' }]);
+    });
+
     it('WHEN the file only shares a prefix with a dependency dir THEN an outside-import error is returned', (): void => {
       const lookalikeImport: OutsideImport = { spec: 'tests/a.spec.ts', file: 'apps/web-shared/x.ts' };
       const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, outsideImports: [lookalikeImport] };
