@@ -14,6 +14,9 @@ const POLL_MS = 250;
 
 const PS_LINE = /^\s*(\d+)\s+(.*)$/;
 
+/** The fixtures' webServer entry, which logs its pid under `.atomizer/`. */
+const SERVER_ENTRY = 'server.js';
+
 const isPidName = (name: string): boolean => /^\d+$/.test(name);
 
 const isEntry = (entry: ProcessEntry | null): entry is ProcessEntry => entry !== null;
@@ -90,15 +93,20 @@ export const isAlive = (pid: number): boolean => {
 /**
  * Pids that belong to `root`: a command line naming its unique dir name, a cwd inside it (Linux), or a fixture server
  * that logged its pid there and still runs (webServer commands use relative paths, so their command lines miss it).
+ * A logged pid counts only while its command line runs `server.js`, so a process that reused the pid is left alone.
  */
 const workspacePids = async (root: string): Promise<number[]> => {
   const name = basename(root);
   const entries = await listProcesses();
-  const isOwn = (entry: ProcessEntry): boolean => entry.commandLine.includes(name) || isInside(entry.cwd, root);
-  const listed = entries.filter(isOwn).map((entry): number => entry.pid);
-  const logged = await loggedServerPids(root);
-  const liveLogged = logged.filter(isAlive);
-  const pids = new Set([...listed, ...liveLogged]);
+  const loggedPids = await loggedServerPids(root);
+  const logged = new Set(loggedPids);
+  const isLoggedServer = (entry: ProcessEntry): boolean => logged.has(entry.pid) && entry.commandLine.includes(SERVER_ENTRY);
+
+  const isOwn = (entry: ProcessEntry): boolean =>
+    entry.commandLine.includes(name) || isInside(entry.cwd, root) || isLoggedServer(entry);
+
+  const ownPids = entries.filter(isOwn).map((entry): number => entry.pid);
+  const pids = new Set(ownPids);
 
   pids.delete(process.pid);
 
