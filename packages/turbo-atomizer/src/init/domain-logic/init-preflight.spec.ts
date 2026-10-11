@@ -39,6 +39,19 @@ describe('FEATURE: init preflight', (): void => {
       expect(plan.generated.dir).toBe('tools/custom');
     });
 
+    it('WHEN init is planned with an absolute --generated-dir THEN it rejects with InitConflictException', async (): Promise<void> => {
+      const planning = planInit(optionsFor(PNPM_PACKAGE_DIR, '/abs-gen'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('generated dir "/abs-gen" must be a relative path inside the workspace root');
+    });
+
+    it('WHEN init is planned with a --generated-dir outside the workspace root THEN it rejects with InitConflictException', async (): Promise<void> => {
+      const planning = planInit(optionsFor(PNPM_PACKAGE_DIR, '../outside-gen'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('generated dir "../outside-gen" must be a relative path inside the workspace root');
+    });
     it('WHEN turbo is above the tested range THEN the plan carries the warning', async (): Promise<void> => {
       const untested: PeerVersions = { ...PEER_VERSIONS_STUB, turbo: '2.12.0' };
       const { versions } = initDepsMock();

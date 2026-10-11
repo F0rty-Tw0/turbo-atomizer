@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import type { LoadedAtomizerConfig } from '../../shared/config/common/atomizer-config.type.ts';
 import { findPlaywrightConfig } from '../../shared/config/data-access/atomizer-config.store.ts';
@@ -56,10 +56,27 @@ const requireTestPackage = async (packageDir: string): Promise<TestPackage> => {
   return testPackage;
 };
 
+/** The dir is written under the root and recorded as a workspace glob, so it must be relative and stay inside the root. */
+const requireDirInsideRoot = (root: string, generated: GeneratedPackage): void => {
+  const isAbsoluteDir = isAbsolute(generated.dir);
+  const fromRoot = relative(root, resolve(root, generated.dir));
+  const firstSegment = fromRoot.split(sep)[0];
+  const isInvalid = isAbsoluteDir || firstSegment === '..';
+
+  if (!isInvalid) return;
+
+  throw new InitConflictException(
+    root,
+    `generated dir "${generated.dir}" must be a relative path inside the workspace root; pass --generated-dir such as tools/web-e2e-atoms.`
+  );
+};
+
 /** Step 4: `--generated-dir`, else the configured `generatedPackage`, else `tools/<dir>-atoms`; the two given dirs must agree. */
-const resolveGenerated = (testPackage: TestPackage, loaded: LoadedAtomizerConfig, generatedDir?: string): GeneratedPackage => {
+const resolveGenerated = (root: string, testPackage: TestPackage, loaded: LoadedAtomizerConfig, generatedDir?: string): GeneratedPackage => {
   const configuredDir = loaded.source === 'default' ? undefined : loaded.config.generatedPackage;
   const generated = generatedPackageFor(testPackage.name, testPackage.dir, generatedDir ?? configuredDir);
+
+  requireDirInsideRoot(root, generated);
 
   if (configuredDir === undefined) return generated;
 
@@ -124,7 +141,7 @@ export const planInit = async (options: InitOptions, readVersions: PeerVersionsR
   const testPackage = await requireTestPackage(packageDir);
   const warnings = await readPeerWarnings(root, packageDir, readVersions);
   const loaded = await loadAtomizerConfig(packageDir);
-  const generated = resolveGenerated(testPackage, loaded, options.generatedDir);
+  const generated = resolveGenerated(root, testPackage, loaded, options.generatedDir);
 
   await requireOwnGeneratedDir(root, generated);
   await requireUnexcludedGeneratedDir(root, pm, generated);
