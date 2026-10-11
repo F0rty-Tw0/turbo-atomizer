@@ -1,0 +1,9 @@
+{
+  // keep: workspace-wide task defaults
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"]
+    }
+  }
+}
