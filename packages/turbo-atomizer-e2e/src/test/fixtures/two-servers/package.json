@@ -1,0 +1,8 @@
+{
+  "name": "two-servers",
+  "private": true,
+  "packageManager": "pnpm@12.11.2",
+  "devDependencies": {
+    "turbo": "2.11.7"
+  }
+}

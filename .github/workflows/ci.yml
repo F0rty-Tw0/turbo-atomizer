@@ -39,3 +39,29 @@ jobs:
 
       - name: Test
         run: pnpm exec nx run-many -t test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      # SHA = actions/checkout@v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # SHA = pnpm/setup@v2.1.0
+      - name: Setup toolchain and install dependencies
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+
+      # The fixtures pin the same @playwright/test as the package, so they share this browser build
+      - name: Install Chromium
+        run: pnpm --filter turbo-atomizer exec playwright install --with-deps --only-shell chromium
+
+      - name: E2E
+        run: pnpm exec nx e2e turbo-atomizer-e2e

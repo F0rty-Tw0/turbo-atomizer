@@ -1,0 +1,8 @@
+{
+  "name": "@turbo-atomizer/e2e",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "zod": "catalog:runtime"
+  }
+}

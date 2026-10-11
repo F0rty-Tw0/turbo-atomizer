@@ -1,0 +1,22 @@
+{
+  "name": "turbo-atomizer-e2e",
+  "sourceRoot": "packages/turbo-atomizer-e2e/src",
+  "projectType": "application",
+  "targets": {
+    "typecheck": {},
+    "lint": {},
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["turbo-atomizer"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "command": "vitest run --config packages/turbo-atomizer-e2e/vitest.e2e.config.ts"
+      }
+    }
+  }
+}
