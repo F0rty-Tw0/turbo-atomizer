@@ -1,6 +1,17 @@
-export type FixtureName = 'pnpm-basic' | 'two-servers';
+export type FixtureName = 'npm-basic' | 'pnpm-basic' | 'two-servers';
 
 export type PackageManager = 'npm' | 'pnpm';
+
+/** A fixture installed with one package manager; the regression journey runs once per case. */
+export type FixtureCase = {
+  readonly fixture: FixtureName;
+  readonly pm: PackageManager;
+};
+
+/** The `ATOMIZER_E2E_*` settings of this run; undefined means unset. */
+export type E2eEnv = {
+  readonly pm: PackageManager | undefined;
+};
 
 export type CommandEnv = Record<string, string>;
 

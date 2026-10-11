@@ -1,13 +1,12 @@
-import type { Dirent } from 'node:fs';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { freePorts } from './free-port.spec.util.ts';
+import { fillPorts } from './fixture-ports.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
 import { quotedPath, runChecked, runCommand } from './workspace-command.spec.util.ts';
 import { settleWorkspaceProcesses } from './workspace-processes.spec.util.ts';
-import { INSTALL_COMMANDS, MAX_FIXTURE_PORTS, PORT_PLACEHOLDER, PROCESS_SETTLE_MS } from '../common/fixture-workspace.const.ts';
+import { FIXTURE_BASES, INSTALL_COMMANDS, PNPM_WORKSPACE_FILE, PROCESS_SETTLE_MS } from '../common/fixture-workspace.const.ts';
 import type {
   CommandEnv,
   FixtureName,
@@ -21,35 +20,6 @@ import { npmPackSchema, rootManifestSchema } from '../common/turbo-summary.schem
 const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 
 const ATOMIZER_DIST = join(import.meta.dirname, '..', '..', '..', '..', '..', 'dist', 'packages', 'turbo-atomizer');
-
-const isFile = (entry: Dirent): boolean => entry.isFile();
-
-const entryPath = (entry: Dirent): string => join(entry.parentPath, entry.name);
-
-const fillFilePorts = async (file: string, ports: number[]): Promise<void> => {
-  const text = await readFile(file, 'utf8');
-
-  const portFor = (placeholder: string, index: string): string => {
-    const port = ports[Number(index) - 1];
-
-    if (port === undefined) return placeholder;
-
-    return String(port);
-  };
-
-  const filled = text.replaceAll(PORT_PLACEHOLDER, portFor);
-
-  if (filled !== text) await writeFile(file, filled);
-};
-
-/** Replaces every port placeholder in the copied fixture with a port the OS just handed out. */
-const fillPorts = async (root: string): Promise<void> => {
-  const ports = await freePorts(MAX_FIXTURE_PORTS);
-  const entries = await readdir(root, { recursive: true, withFileTypes: true });
-  const files = entries.filter(isFile).map(entryPath);
-
-  await Promise.all(files.map(async (file): Promise<void> => fillFilePorts(file, ports)));
-};
 
 // Windows can hold a file briefly after its process exits
 const RM_RETRIES = 5;
@@ -82,9 +52,21 @@ const commitAll = async (root: string, message: string): Promise<void> => {
   await runChecked(root, `git add --all && git commit --quiet --allow-empty --message ${JSON.stringify(message)}`);
 };
 
+/** Copies the fixture's base fixture first, if it has one, then the fixture's own files over it. */
+const copyFixture = async (root: string, name: FixtureName, pm: PackageManager): Promise<void> => {
+  const base = FIXTURE_BASES[name];
+
+  if (base !== undefined) await cp(join(FIXTURES_DIR, base), root, { recursive: true });
+
+  await cp(join(FIXTURES_DIR, name), root, { recursive: true });
+
+  // an npm workspace lists its packages in package.json
+  if (pm === 'npm') await rm(join(root, PNPM_WORKSPACE_FILE), { force: true });
+};
+
 /** Copies the fixture, packs and installs the built package as a root devDependency, and commits everything. */
 const prepareWorkspace = async (root: string, name: FixtureName, pm: PackageManager): Promise<void> => {
-  await cp(join(FIXTURES_DIR, name), root, { recursive: true });
+  await copyFixture(root, name, pm);
   await fillPorts(root);
 
   const tarball = await packAtomizer(root);
