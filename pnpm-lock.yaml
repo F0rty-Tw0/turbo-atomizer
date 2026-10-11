@@ -301,6 +301,12 @@ importers:
         specifier: catalog:dev
         version: 2.11.7
 
+  packages/turbo-atomizer-e2e:
+    devDependencies:
+      zod:
+        specifier: catalog:runtime
+        version: 4.6.5
+
   tools: {}
 
 packages:
