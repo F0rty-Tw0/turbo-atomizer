@@ -83,6 +83,8 @@ jobs:
     env:
       # Replaces every fixture's pinned turbo, to catch a turbo release that breaks the generated tasks early
       ATOMIZER_E2E_TURBO_VERSION: latest
+      # pnpm only: npm rejects the package's turbo peer range with ERESOLVE once latest leaves it, which tests npm, not the tasks
+      ATOMIZER_E2E_PM: pnpm
 
     steps:
       # SHA = actions/checkout@v7.0.1
