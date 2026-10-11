@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  ALL_TASK_ID,
   ATOMS_TURBO_JSON,
   PNPM_BASIC_SPECS,
   TEST_PACKAGE_DIR,
@@ -26,6 +27,8 @@ import {
 import { outputOf } from './test/utils/workspace-command.spec.util.ts';
 
 const ALL_FILE_TASKS = PNPM_BASIC_SPECS.map(fileTaskId);
+/** What `turbo run e2e-ci` runs in pnpm-basic: one file task and one carrier per spec, plus `web#build`. */
+const EVERY_TASK_COUNT = 2 * PNPM_BASIC_SPECS.length + 1;
 const TESTS_DIR = `${TEST_PACKAGE_DIR}/tests`;
 const LOGIN_SPEC = `${TESTS_DIR}/login.spec.ts`;
 const SEARCH_SPEC = `${TESTS_DIR}/search.spec.ts`;
@@ -59,7 +62,7 @@ describe('FEATURE: linux regression', (): void => {
 
       expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
       expect(missedFileTaskIds(run.tasks)).toEqual(ALL_FILE_TASKS);
-      expect(run.tasks).toHaveLength(2 * PNPM_BASIC_SPECS.length + 1);
+      expect(run.tasks).toHaveLength(EVERY_TASK_COUNT);
       expect(starts).toBe(1);
     });
 
@@ -74,6 +77,7 @@ describe('FEATURE: linux regression', (): void => {
       const starts = await startCount(workspace.root, 'starts');
 
       expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
+      expect(run.tasks).toHaveLength(EVERY_TASK_COUNT);
       expect(missedTaskIds(run.tasks)).toEqual([]);
       expect(starts).toBe(1);
     });
@@ -212,24 +216,28 @@ describe('FEATURE: linux regression', (): void => {
     it('WHEN nothing changed after the committed base THEN turbo-atomizer affected exits 0 without a turbo run', async (): Promise<void> => {
       await workspace.commit('affected edit');
 
-      const run = await summarizedRun(workspace.root, 'turbo-atomizer affected --', { [TURBO_SCM_BASE_ENV]: 'HEAD' });
+      const run = await summarizedRun(workspace.root, 'turbo-atomizer affected --', { [TURBO_SCM_BASE_ENV]: 'HEAD' }, 'optional');
 
       expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
       expect(run.result.stdout).toContain('no affected file tasks in web-e2e');
       expect(run.tasks).toEqual([]);
     });
 
-    it('WHEN every spec is removed and synced THEN e2e-ci is a passing no-op', async (): Promise<void> => {
+    it('WHEN every spec is removed and synced THEN e2e-ci--all has no file task left and e2e-ci is a passing no-op', async (): Promise<void> => {
       const removals = PNPM_BASIC_SPECS.map(async (spec): Promise<void> => workspace.remove(`${TEST_PACKAGE_DIR}/${spec}`));
 
       await Promise.all(removals);
 
       const sync = await workspace.run('turbo-atomizer sync');
-      const run = await summarizedRun(workspace.root, 'turbo run e2e-ci');
+      const planned = await dryRunTasks(workspace.root, 'e2e-ci');
+      // `e2e-ci--all` has no command, so turbo schedules it but leaves it out of the run summary: the run lists no task.
+      const run = await summarizedRun(workspace.root, 'turbo run e2e-ci', {}, 'optional');
 
       expect(sync, outputOf(sync)).toMatchObject({ exitCode: 0 });
+      expect(cacheStatusOf(planned, ALL_TASK_ID)).toBeDefined();
+      expect(fileTaskIds(planned)).toEqual([]);
       expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
-      expect(fileTaskIds(run.tasks)).toEqual([]);
+      expect(outputOf(run.result)).toContain('No tasks were executed');
     });
   });
 
