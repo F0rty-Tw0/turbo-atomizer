@@ -73,7 +73,7 @@ const requireDirInsideRoot = (root: string, generated: GeneratedPackage): void =
 
 /** Step 4: `--generated-dir`, else the configured `generatedPackage`, else `tools/<dir>-atoms`; the two given dirs must agree. */
 const resolveGenerated = (root: string, testPackage: TestPackage, loaded: LoadedAtomizerConfig, generatedDir?: string): GeneratedPackage => {
-  const configuredDir = loaded.source === 'default' ? undefined : loaded.config.generatedPackage;
+  const configuredDir = loaded.hasGeneratedPackage ? loaded.config.generatedPackage : undefined;
   const generated = generatedPackageFor(testPackage.name, testPackage.dir, generatedDir ?? configuredDir);
 
   requireDirInsideRoot(root, generated);
@@ -84,13 +84,9 @@ const resolveGenerated = (root: string, testPackage: TestPackage, loaded: Loaded
 
   if (generated.dir === configured.dir) return generated;
 
-  // The loaded config fills an unset generatedPackage with the derived default, so a match means it may not be set.
-  const defaultDir = generatedPackageFor(testPackage.name, testPackage.dir).dir;
-  const setting = configured.dir === defaultDir ? 'generatedPackage defaults to' : 'the atomizer config sets generatedPackage';
-
   throw new InitConflictException(
     testPackage.dir,
-    `${setting} "${configured.dir}" but --generated-dir is "${generated.dir}"; drop --generated-dir or set generatedPackage in the config.`
+    `the atomizer config sets generatedPackage "${configured.dir}" but --generated-dir is "${generated.dir}"; drop --generated-dir or change generatedPackage in the config.`
   );
 };
 
