@@ -145,7 +145,13 @@ export class SupervisorLoop {
     const running = this.servers;
 
     this.servers = [];
-    await stopWebServers(running);
+
+    try {
+      await stopWebServers(running);
+    } catch (error) {
+      this.options.log.write(`[turbo-atomizer] stopping the web servers failed: ${String(error)}\n`);
+    }
+
     this.dispatch(SERVERS_EXITED);
   }
 
