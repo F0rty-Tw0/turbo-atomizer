@@ -1,7 +1,8 @@
 import { parse } from 'jsonc-parser';
 
+import { ATOMIZER_TASK_TAG_PREFIX } from '../../shared/atomizer/common/atomizer.const.ts';
 import type { AtomsDiff } from '../common/atoms-diff.type.ts';
-import { atomsTurboJsonSchema } from '../common/atoms-turbo-json.schema.ts';
+import { atomsTurboJsonSchema, taggedTaskSchema } from '../common/atoms-turbo-json.schema.ts';
 
 type SerializedTasks = Map<string, string>;
 
@@ -11,20 +12,32 @@ const toSerializedEntry = ([name, task]: [string, unknown]): [string, string] =>
   return [name, serializedTask];
 };
 
-const readSerializedTasks = (text: string): SerializedTasks => {
+const hasTag = (task: unknown, tag: string): boolean => {
+  const result = taggedTaskSchema.safeParse(task);
+
+  if (!result.success) return false;
+
+  return result.data.tags.includes(tag);
+};
+
+const readSerializedFileTasks = (text: string, fileTaskTag: string): SerializedTasks => {
   const json: unknown = parse(text);
   const result = atomsTurboJsonSchema.safeParse(json);
 
   if (!result.success) return new Map();
 
-  const entries = Object.entries(result.data.tasks).map(toSerializedEntry);
+  const isFileTask = ([, task]: [string, unknown]): boolean => hasTag(task, fileTaskTag);
+  const fileTaskEntries = Object.entries(result.data.tasks).filter(isFileTask);
+  const entries = fileTaskEntries.map(toSerializedEntry);
 
   return new Map(entries);
 };
 
-export const diffAtoms = (before: string | undefined, after: string): AtomsDiff => {
-  const beforeTasks = readSerializedTasks(before ?? '');
-  const afterTasks = readSerializedTasks(after);
+/** File tasks only, picked by the `atomizer:<task>` tag; a carrier changes only together with its file task (spec §6.2). */
+export const diffAtoms = (before: string | undefined, after: string, task: string): AtomsDiff => {
+  const fileTaskTag = `${ATOMIZER_TASK_TAG_PREFIX}${task}`;
+  const beforeTasks = readSerializedFileTasks(before ?? '', fileTaskTag);
+  const afterTasks = readSerializedFileTasks(after, fileTaskTag);
   const afterNames = Array.from(afterTasks.keys());
   const beforeNames = Array.from(beforeTasks.keys());
   const isAdded = (name: string): boolean => !beforeTasks.has(name);
