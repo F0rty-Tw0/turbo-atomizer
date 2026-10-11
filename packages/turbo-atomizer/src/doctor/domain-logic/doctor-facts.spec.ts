@@ -153,6 +153,22 @@ describe('FEATURE: gather doctor facts', (): void => {
       LIST_TIMEOUT_MS
     );
 
+    it(
+      'WHEN the root turbo.json lacks experimentalTaskCommand THEN turbo is never queried and its facts are empty',
+      async (): Promise<void> => {
+        const deps = doctorDepsMock();
+
+        await writeFile(join(copy.directory, 'turbo.json'), '{ "tasks": {} }\n');
+
+        const facts = await gatherDoctorFacts(packageDir, deps);
+        const turboFacts = { dependencyTasks: facts.dependencyTasks, outsideImports: facts.outsideImports };
+        const queryCount = vi.mocked(deps.queryPackageTasks).mock.calls.length + vi.mocked(deps.queryFileDeps).mock.calls.length;
+
+        expect({ ...turboFacts, queryCount }).toEqual({ dependencyTasks: [], outsideImports: [], queryCount: 0 });
+      },
+      LIST_TIMEOUT_MS
+    );
+
     it('WHEN the test package has no name THEN a package-name-missing exception is thrown', async (): Promise<void> => {
       await writeFile(join(packageDir, 'package.json'), '{ "private": true }\n');
 
