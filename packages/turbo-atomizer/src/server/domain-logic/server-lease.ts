@@ -1,8 +1,8 @@
 import type { Socket } from 'node:net';
-import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { ownRendezvousPath, preparePrivateDir, refuseForeignListener } from './rendezvous.ts';
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
@@ -10,11 +10,12 @@ import { CLIENT_SILENCE_MS, LEASE_ATTEMPTS, SUPERVISOR_CONNECT_MS } from '../com
 import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
 import { spawnSupervisor } from '../data-access/supervisor.process.ts';
 import { nextProbeDelay } from '../utils/probe-schedule.util.ts';
-import { rendezvousPath } from '../utils/rendezvous-path.util.ts';
 
 const ignoreSocketError = (): void => undefined;
 
 const tryConnect = async (socketPath: string): Promise<Socket | undefined> => {
+  await refuseForeignListener(socketPath);
+
   return connectSocket(socketPath).catch((): undefined => undefined);
 };
 
@@ -91,7 +92,9 @@ const awaitAnswer = async (socket: Socket): Promise<ServerLease | undefined> => 
  */
 export const ensureServer = async (packageDir: string, configFile: string, supervisorPath: string): Promise<ServerLease> => {
   const root = resolve(packageDir);
-  const socketPath = rendezvousPath(root, process.platform, tmpdir());
+  const socketPath = ownRendezvousPath(root);
+
+  await preparePrivateDir(socketPath);
 
   for (let attempt = 0; attempt < LEASE_ATTEMPTS; attempt += 1) {
     const socket = await connectSupervisor(socketPath, root, configFile, supervisorPath);

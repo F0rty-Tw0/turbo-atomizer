@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ownRendezvousPath } from './rendezvous.ts';
 import { ensureServer } from './server-lease.ts';
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
@@ -14,7 +15,7 @@ import type { StaticServer } from '../test/common/server.type.ts';
 import { createStaleSocket } from '../test/utils/stale-socket.spec.util.ts';
 import { exitedPid, freePort, isAlive, startStaticServer, waitUntil } from '../test/utils/static-server.spec.util.ts';
 import { killSupervisor, startedPids } from '../test/utils/supervisor-cleanup.spec.util.ts';
-import { lockPathOf, rendezvousPath } from '../utils/rendezvous-path.util.ts';
+import { lockPathOf } from '../utils/rendezvous-path.util.ts';
 
 const SUPERVISOR_PATH = join(import.meta.dirname, '../../supervisor.ts');
 const CONFIG_FILE = 'playwright.config.ts';
@@ -40,8 +41,9 @@ describe('FEATURE: server lease', (): void => {
   beforeEach(async (): Promise<void> => {
     copy = await copyFixture('server-config');
     port = await freePort();
-    socketPath = rendezvousPath(copy.directory, process.platform, tmpdir());
+    socketPath = ownRendezvousPath(copy.directory);
     lockPath = lockPathOf(socketPath);
+    await mkdir(dirname(socketPath), { recursive: true, mode: 0o700 });
     vi.stubEnv('ATOMIZER_FIXTURE_PORT', String(port));
     vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'ok');
   });
@@ -153,6 +155,31 @@ describe('FEATURE: server lease', (): void => {
 
       held.release();
       expect(held.env).toEqual({});
+    }, CASE_TIMEOUT_MS);
+  });
+
+  describe('GIVEN a per-user rendezvous dir other users can enter', (): void => {
+    let sharedTmp: string;
+
+    beforeEach(async (): Promise<void> => {
+      sharedTmp = await mkdtemp(join(tmpdir(), 'atomizer-shared-'));
+      vi.stubEnv('TMPDIR', sharedTmp);
+
+      const userDir = dirname(ownRendezvousPath(copy.directory));
+
+      await mkdir(userDir);
+      await chmod(userDir, 0o755);
+    });
+
+    afterEach(async (): Promise<void> => {
+      await rm(sharedTmp, { force: true, recursive: true });
+    });
+
+    it('WHEN an exec leases the server THEN it rejects naming the dir and spawns no supervisor', async (): Promise<void> => {
+      const request = lease(copy.directory);
+
+      await expect(request).rejects.toThrow('with mode 0700');
+      expect(existsSync(join(copy.directory, '.atomizer/server.log'))).toBe(false);
     }, CASE_TIMEOUT_MS);
   });
 });

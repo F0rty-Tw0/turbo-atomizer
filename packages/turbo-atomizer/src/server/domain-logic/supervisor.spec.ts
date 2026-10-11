@@ -2,19 +2,19 @@ import { once } from 'node:events';
 import { access, mkdir } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ownRendezvousPath } from './rendezvous.ts';
 import { runSupervisor } from './supervisor.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
 import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
 import { freePort } from '../test/utils/static-server.spec.util.ts';
-import { lockPathOf, rendezvousPath } from '../utils/rendezvous-path.util.ts';
+import { lockPathOf } from '../utils/rendezvous-path.util.ts';
 
 const RUN_TIMEOUT_MS = 30_000;
 const LISTEN_WAIT_MS = 10_000;
@@ -55,7 +55,8 @@ describe('FEATURE: supervisor', (): void => {
   beforeEach(async (): Promise<void> => {
     copy = await copyFixture('server-config');
     await mkdir(join(copy.directory, '.atomizer'));
-    socketPath = rendezvousPath(copy.directory, process.platform, tmpdir());
+    socketPath = ownRendezvousPath(copy.directory);
+    await mkdir(dirname(socketPath), { recursive: true, mode: 0o700 });
 
     const port = await freePort();
 
