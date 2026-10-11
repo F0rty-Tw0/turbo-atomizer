@@ -6,8 +6,9 @@ const win32ProcessSchema = z.object({
   ProcessId: z.number(),
   ParentProcessId: z.number(),
   Name: z.string(),
-  CommandLine: z.string().nullable()
+  CommandLine: z.string().nullable(),
+  CreationDate: z.number()
 }) satisfies z.ZodType<Win32Process>;
 
-/** stdout of `ConvertTo-Json -InputObject @(Get-CimInstance Win32_Process | Select-Object …)`. */
+/** stdout of `ConvertTo-Json -InputObject @(Get-CimInstance Win32_Process | Select-Object …)`, `CreationDate` as Unix ms. */
 export const win32ProcessListSchema = z.array(win32ProcessSchema);
