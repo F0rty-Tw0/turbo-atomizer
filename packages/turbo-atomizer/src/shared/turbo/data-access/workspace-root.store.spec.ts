@@ -18,6 +18,16 @@ describe('FEATURE: workspace root store', (): void => {
     });
   });
 
+  describe('GIVEN a workspace whose test package has its own turbo.json with "extends"', (): void => {
+    it('WHEN searched from the test package THEN the package turbo.json is skipped and the root returned', async (): Promise<void> => {
+      const root = turboFixtureDir('package-turbo-workspace');
+
+      const found = await findWorkspaceRoot(join(root, 'apps/e2e'));
+
+      expect(found).toBe(root);
+    });
+  });
+
   describe('GIVEN a tree without turbo.json or turbo.jsonc up to the filesystem root', (): void => {
     it('WHEN searched THEN it rejects with WorkspaceRootMissingException', async (): Promise<void> => {
       const searching = findWorkspaceRoot(tmpdir());

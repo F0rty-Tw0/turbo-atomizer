@@ -32,7 +32,7 @@ const readOrEmpty = async (path: string | undefined): Promise<string> => {
 };
 
 /** Returns the path of `turbo.json` or `turbo.jsonc` in `directory`, or `undefined` when neither exists. */
-export const findTurboJsonPath = async (directory: string): Promise<string | undefined> => {
+const findTurboJsonPath = async (directory: string): Promise<string | undefined> => {
   const candidates = TURBO_JSON_FILES.map((name): string => join(directory, name));
   const exists = await Promise.all(candidates.map(pathExists));
 
