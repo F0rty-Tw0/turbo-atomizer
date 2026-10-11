@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { z } from 'zod';
 
@@ -10,7 +10,7 @@ const binManifestSchema = z.looseObject({
 
 /** Resolves `@playwright/test/package.json` the way the test package's own `require` would. */
 export const resolvePlaywrightPackageJson = (packageDir: string): string => {
-  const require = createRequire(import.meta.url);
+  const require = createRequire(resolve(packageDir, 'package.json'));
   const paths = [packageDir];
 
   return require.resolve('@playwright/test/package.json', { paths });
