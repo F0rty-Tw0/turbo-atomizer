@@ -1,10 +1,18 @@
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 
+import { readJsonFile } from '@nx/devkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildPackage } from './build-package.ts';
+import type { PackageManifest } from './common/build-package.type.ts';
+
+const execFileAsync = promisify(execFile);
+
+const packageRoot = resolve(import.meta.dirname, '../../packages/turbo-atomizer');
 
 const ENTRY_FILES = [
   'cli.js',
@@ -89,6 +97,29 @@ describe('FEATURE: build package', (): void => {
       const cli = await readFile(join(outDir, 'cli.js'), 'utf8');
 
       expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    });
+
+    describe('WHEN cli.js runs with its runtime dependencies installed next to it', (): void => {
+      beforeAll(async (): Promise<void> => {
+        await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');
+      });
+
+      it('THEN --version prints the manifest version', async (): Promise<void> => {
+        const manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--version']);
+
+        expect(stdout).toBe(`${manifest.version}\n`);
+      });
+
+      it('THEN --help prints the usage', async (): Promise<void> => {
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--help']);
+
+        expect(stdout).toContain('merge-reports');
+      });
     });
   });
 });

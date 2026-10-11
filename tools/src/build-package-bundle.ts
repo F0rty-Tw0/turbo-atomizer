@@ -6,6 +6,9 @@ import type { BuildOptions } from 'esbuild';
 import { ENTRY_BUILDS } from './common/build-package.const.ts';
 import type { BuildPackageContext, EntryBuild, PackageDependencyMap } from './common/build-package.type.ts';
 
+/** Read by `packages/turbo-atomizer/src/config/build-info.ts`. */
+const VERSION_DEFINE = '__TURBO_ATOMIZER_VERSION__';
+
 const externalDependencies = (context: BuildPackageContext): string[] => {
   const dependencies = context.manifest.dependencies ?? {};
   const peerDependencies = context.manifest.peerDependencies ?? {};
@@ -22,8 +25,10 @@ const bundleEntries = async (context: BuildPackageContext, entryBuild: EntryBuil
   const entryPoints = entryBuild.entryNames.map((name): string => join(sourceRoot, `${name}.ts`));
   const external = externalDependencies(context);
   const outExtension = { '.js': entryBuild.extension };
+  const define = { [VERSION_DEFINE]: JSON.stringify(context.manifest.version) };
   const options: BuildOptions = {
     bundle: true,
+    define,
     entryPoints,
     external,
     format: entryBuild.format,

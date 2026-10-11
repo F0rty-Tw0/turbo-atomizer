@@ -2,6 +2,7 @@
 import { affectedHandler } from './affected/feature/affected.handler.ts';
 import type { CliCommand } from './cli/common/cli.type.ts';
 import { parseCliArgs } from './cli/utils/cli-args.util.ts';
+import { getCliVersion } from './config/build-info.ts';
 import { resolvePackageTargets } from './shared/workspace/domain-logic/package-targets.ts';
 
 const NO_PACKAGES = 'turbo-atomizer: no test package with an atomizer config found; pass --package <dir>\n';
@@ -28,6 +29,11 @@ const runCommand = async (command: CliCommand): Promise<number> => {
       return command.exitCode;
     }
 
+    case 'version':
+      process.stdout.write(`${getCliVersion()}\n`);
+
+      return 0;
+
     case 'affected':
       return runAffected(command.package, command.forwarded);
 
@@ -35,7 +41,6 @@ const runCommand = async (command: CliCommand): Promise<number> => {
     case 'sync':
     case 'doctor':
     case 'merge-reports':
-    case 'version':
       process.stderr.write(`turbo-atomizer: ${command.command} is not available yet\n`);
 
       return 1;
