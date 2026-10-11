@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import type { LoadedAtomizerConfig } from '../../shared/config/common/atomizer-config.type.ts';
@@ -70,17 +71,23 @@ const resolveGenerated = (testPackage: TestPackage, loaded: LoadedAtomizerConfig
   );
 };
 
+/** The rule `writeGeneratedPackage` applies, checked here so it fails before the first write: an existing dir must be the generated package. */
 const requireOwnGeneratedDir = async (root: string, generated: GeneratedPackage): Promise<void> => {
   const dir = join(root, generated.dir);
-  const owner = await readGeneratedPackageOwner(dir);
-  const isForeign = owner !== undefined && owner !== generated.name;
+  const dirExists = existsSync(dir);
 
-  if (isForeign) {
-    throw new InitConflictException(
-      dir,
-      `holds ${owner}, not the generated package ${generated.name}; pass --generated-dir to choose another dir.`
-    );
-  }
+  if (!dirExists) return;
+
+  const owner = await readGeneratedPackageOwner(dir);
+
+  if (owner === generated.name) return;
+
+  const found = owner ?? 'no package.json';
+
+  throw new InitConflictException(
+    dir,
+    `holds ${found}, not the generated package ${generated.name}; pass --generated-dir to choose another dir.`
+  );
 };
 
 const planTurboJson = async (packageDir: string, generated: GeneratedPackage, task: string): Promise<TurboJsonPlan> => {
