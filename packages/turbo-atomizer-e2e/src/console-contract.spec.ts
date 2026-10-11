@@ -90,7 +90,7 @@ describe('FEATURE: console contract', (): void => {
       expect(names.filter((name): boolean => !isFileTaskName(name))).toEqual([]);
     });
 
-    it('WHEN turbo query lists the packages THEN only the generated package carries atomizer:definitions', (): void => {
+    it('WHEN turbo query lists the packages THEN the generated package carries atomizer:definitions and the test package does not', (): void => {
       expect(generatedPackage.tags).toContain(DEFINITIONS_TAG);
       expect(testPackage.tags).not.toContain(DEFINITIONS_TAG);
     });
