@@ -1,5 +1,29 @@
+import type { AtomizerConfig } from '../../shared/config/common/atomizer-config.type.ts';
 import type { JsonEdit, TurboJsonContent } from '../../shared/turbo/common/turbo-json.type.ts';
+import type { PackageManager } from '../../shared/workspace/common/workspace.type.ts';
 import type { SyncResult } from '../../sync/common/sync.type.ts';
+
+export type InitOptions = {
+  readonly cliVersion: string;
+  /** Generated package dir relative to the workspace root; default `tools/<test-package-dir-basename>-atoms`. */
+  readonly generatedDir?: string | undefined;
+  readonly packageDir: string;
+};
+
+export type PeerVersions = {
+  readonly playwright: string;
+  readonly turbo: string;
+};
+
+export type InstallRunner = (root: string, pm: PackageManager) => Promise<void>;
+
+export type PeerVersionsReader = (root: string, packageDir: string) => Promise<PeerVersions>;
+
+/** The side effects init does not run itself, injected so domain logic is tested without installing. */
+export type InitDeps = {
+  readonly install: InstallRunner;
+  readonly versions: PeerVersionsReader;
+};
 
 export type GeneratedPackage = {
   readonly name: string;
@@ -32,6 +56,19 @@ type TurboJsonConflictPlan = {
 
 /** What init step 8 does to the test package's turbo.json. */
 export type TurboJsonPlan = TurboJsonConflictPlan | TurboJsonCreatePlan | TurboJsonEditPlan | TurboJsonUnchangedPlan;
+
+/** Everything init checked before its first write (spec §6.1 steps 1, 2, 4 and the step 8 conflicts). */
+export type InitPlan = {
+  readonly cliVersion: string;
+  readonly config: AtomizerConfig;
+  readonly generated: GeneratedPackage;
+  readonly packageDir: string;
+  readonly packageName: string;
+  readonly pm: PackageManager;
+  readonly root: string;
+  readonly turboJsonPlan: TurboJsonPlan;
+  readonly warnings: string[];
+};
 
 /** What init did to one test package (spec §6.1 step 12). */
 export type InitReport = {
