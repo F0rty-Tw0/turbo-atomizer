@@ -58,12 +58,36 @@ describe('FEATURE: doctor coverage checks', (): void => {
       expect(findings[0]?.message).toContain('extraInputs');
     });
 
-    it('WHEN extraInputs is set THEN there are no findings', (): void => {
+    it('WHEN an extraInputs entry reaches outside the test package THEN there are no findings', (): void => {
       const covered: DoctorFacts = { ...facts, extraInputs: ['$TURBO_ROOT$/apps/web/src/**'] };
 
       const findings = checkCoverage(covered);
 
       expect(findings).toEqual([]);
+    });
+
+    it('WHEN a package-relative extraInputs entry reaches outside the test package THEN there are no findings', (): void => {
+      const covered: DoctorFacts = { ...facts, extraInputs: ['../web/src/**'] };
+
+      const findings = checkCoverage(covered);
+
+      expect(findings).toEqual([]);
+    });
+
+    it('WHEN every extraInputs entry stays inside the test package THEN an app-dependency-missing error is returned', (): void => {
+      const inside: DoctorFacts = { ...facts, extraInputs: ['README.md', '$TURBO_ROOT$/apps/web-e2e/fixtures/**'] };
+
+      const findings = checkCoverage(inside);
+
+      expect(findings).toMatchObject([{ code: 'app-dependency-missing' }]);
+    });
+
+    it('WHEN the only outside extraInputs entry is negated THEN an app-dependency-missing error is returned', (): void => {
+      const negated: DoctorFacts = { ...facts, extraInputs: ['!$TURBO_ROOT$/apps/web/src/**'] };
+
+      const findings = checkCoverage(negated);
+
+      expect(findings).toMatchObject([{ code: 'app-dependency-missing' }]);
     });
   });
 

@@ -30,30 +30,6 @@ const hasDependencyTask = (entry: string, dependency: PackageTasks): boolean => 
   return dependency.tasks.includes(taskName);
 };
 
-const isAppCovered = (facts: DoctorFacts): boolean => {
-  const isCoveredBy = (entry: string): boolean =>
-    facts.dependencyTasks.some((dependency): boolean => hasDependencyTask(entry, dependency));
-
-  return facts.dependsOn.some(isCoveredBy);
-};
-
-const appFindings = (facts: DoctorFacts): DoctorFinding[] => {
-  const webServers = facts.metadata?.webServers ?? [];
-  const hasExtraInputs = facts.extraInputs.length > 0;
-
-  if (webServers.length === 0 || hasExtraInputs) return [];
-
-  const isCovered = isAppCovered(facts);
-
-  if (isCovered) return [];
-
-  const dependsOn = facts.dependsOn.join(', ');
-  const message = `The config has a web server, but no workspace dependency of the test package has a task matched by dependsOn (${dependsOn}), so app changes do not reach the file hashes. Add the app as a dependency with a build task, or list its sources in extraInputs.`;
-  const finding: DoctorFinding = { level: 'error', code: 'app-dependency-missing', message };
-
-  return [finding];
-};
-
 /** Turns an `extraInputs` entry, without its `!`, into a glob relative to the workspace root. */
 const rootGlob = (entry: string, packageDir: string): string => {
   const isRootRelative = entry.startsWith(TURBO_ROOT_PREFIX);
@@ -94,6 +70,38 @@ const isUncoveredImport = (outsideImport: OutsideImport, facts: DoctorFacts, glo
   if (isDependencyFile) return false;
 
   return !isInputFile(outsideImport.file, globs);
+};
+
+/** An `extraInputs` glob outside the test package may list the app's sources, so the app-dependency check defers to it. */
+const reachesOutsidePackage = (facts: DoctorFacts): boolean => {
+  const { included } = inputGlobs(facts);
+  const isOutside = (glob: string): boolean => !glob.startsWith(`${facts.packageDir}/`);
+
+  return included.some(isOutside);
+};
+
+const isAppCovered = (facts: DoctorFacts): boolean => {
+  const isCoveredBy = (entry: string): boolean =>
+    facts.dependencyTasks.some((dependency): boolean => hasDependencyTask(entry, dependency));
+
+  return facts.dependsOn.some(isCoveredBy);
+};
+
+const appFindings = (facts: DoctorFacts): DoctorFinding[] => {
+  const webServers = facts.metadata?.webServers ?? [];
+  const hasOutsideInput = reachesOutsidePackage(facts);
+
+  if (webServers.length === 0 || hasOutsideInput) return [];
+
+  const isCovered = isAppCovered(facts);
+
+  if (isCovered) return [];
+
+  const dependsOn = facts.dependsOn.join(', ');
+  const message = `The config has a web server, but no workspace dependency of the test package has a task matched by dependsOn (${dependsOn}), so app changes do not reach the file hashes. Add the app as a dependency with a build task, or list its sources in extraInputs.`;
+  const finding: DoctorFinding = { level: 'error', code: 'app-dependency-missing', message };
+
+  return [finding];
 };
 
 const outsideImportFinding = (outsideImport: OutsideImport): DoctorFinding => {
