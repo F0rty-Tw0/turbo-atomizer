@@ -5,7 +5,7 @@ import type { FixtureWorkspace } from './test/common/fixture-workspace.type.ts';
 import { createSyncedWorkspace } from './test/utils/atomizer-setup.spec.util.ts';
 import { isPmSelected } from './test/utils/e2e-env.spec.util.ts';
 import { startupCostReport } from './test/utils/startup-cost.spec.util.ts';
-import { missedFileTaskIds, summarizedRun } from './test/utils/turbo-summary.spec.util.ts';
+import { fileTaskIds, missedFileTaskIds, summarizedRun } from './test/utils/turbo-summary.spec.util.ts';
 import { outputOf } from './test/utils/workspace-command.spec.util.ts';
 
 describe('FEATURE: per-file start-up cost', (): void => {
@@ -27,6 +27,7 @@ describe('FEATURE: per-file start-up cost', (): void => {
       expect(cold.result, outputOf(cold.result)).toMatchObject({ exitCode: 0 });
       expect(cached.result, outputOf(cached.result)).toMatchObject({ exitCode: 0 });
       expect(missedFileTaskIds(cold.tasks)).toHaveLength(PNPM_BASIC_SPECS.length);
+      expect(fileTaskIds(cached.tasks)).toHaveLength(PNPM_BASIC_SPECS.length);
       expect(missedFileTaskIds(cached.tasks)).toEqual([]);
     });
   });

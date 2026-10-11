@@ -30,5 +30,7 @@ export type AtomizerConfigSource = 'default' | 'file' | 'package-json';
 
 export type LoadedAtomizerConfig = {
   readonly config: AtomizerConfig;
+  /** Whether the config sets `generatedPackage`; when it does not, `config` holds the derived default. */
+  readonly hasGeneratedPackage: boolean;
   readonly source: AtomizerConfigSource;
 };

@@ -1,13 +1,14 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { initPackage } from './init.ts';
+import { initPackage, runInit } from './init.ts';
 import { PeerVersionException } from '../../shared/workspace/common/peer-version.exception.ts';
 import type { PackageManager } from '../../shared/workspace/common/workspace.type.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture, readFixtureTree } from '../../test/utils/fixture-copy.spec.util.ts';
+import { InitConflictException } from '../common/init-conflict.exception.ts';
 import type { InitDeps, InitOptions, InitReport, PeerVersions } from '../common/init.type.ts';
 import { initDepsMock } from '../test/mocks/init.mock.ts';
 import { PEER_VERSIONS_STUB } from '../test/stubs/init.stub.ts';
@@ -197,6 +198,49 @@ describe('FEATURE: init package', (): void => {
 
       await expect(running).rejects.toBeInstanceOf(PeerVersionException);
       await expect(readFixtureTree(copy.directory)).resolves.toEqual(before);
+    });
+  });
+
+  describe('GIVEN an init-pnpm copy whose generated dir exists without a package.json', (): void => {
+    let copy: FixtureCopy;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('init-pnpm');
+      await mkdir(join(copy.directory, 'tools/web-e2e-atoms'), { recursive: true });
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it('WHEN init runs THEN it rejects with InitConflictException and the copy is byte-identical', async (): Promise<void> => {
+      const before = await readFixtureTree(copy.directory);
+
+      const running = initPackage(optionsFor(copy), initDepsMock());
+
+      await expect(running).rejects.toBeInstanceOf(InitConflictException);
+      await expect(readFixtureTree(copy.directory)).resolves.toEqual(before);
+    });
+  });
+
+  describe('GIVEN an init-pnpm copy whose root resolves a turbo with a broken package.json', (): void => {
+    let copy: FixtureCopy;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('init-pnpm');
+      await mkdir(join(copy.directory, 'node_modules/turbo'), { recursive: true });
+      await writeFile(join(copy.directory, 'node_modules/turbo/package.json'), '{ "version": ');
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it('WHEN init runs with the real peer versions THEN it rejects with InitConflictException naming turbo and the root', async (): Promise<void> => {
+      const running = runInit(optionsFor(copy));
+
+      await expect(running).rejects.toThrow(InitConflictException);
+      await expect(running).rejects.toThrow(`${copy.directory}: cannot read turbo/package.json from the workspace root`);
     });
   });
 

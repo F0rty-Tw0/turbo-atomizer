@@ -5,8 +5,12 @@ import { performance } from 'node:perf_hooks';
 import { GIT_ENV, QUIET_ENV } from '../common/fixture-workspace.const.ts';
 import type { CommandEnv, RunResult, RunningCommand } from '../common/fixture-workspace.type.ts';
 
-/** Outer `TURBO_*` settings (remote cache, SCM base) and `FORCE_COLOR`, which would colour the output the specs read. */
-const isDroppedKey = (key: string): boolean => key.startsWith('TURBO_') || key === 'FORCE_COLOR';
+/**
+ * Outer `TURBO_*` settings (remote cache, SCM base), `FORCE_COLOR`, which would colour the output the specs read, and the
+ * runner's `GITHUB_*`: with `GITHUB_ACTIONS` and `GITHUB_BASE_REF` set, turbo takes the base from the PR, ignores
+ * `TURBO_SCM_BASE`, fails to find that ref in the fixture repo and treats every file as changed.
+ */
+const isDroppedKey = (key: string): boolean => key.startsWith('TURBO_') || key.startsWith('GITHUB_') || key === 'FORCE_COLOR';
 
 const definedEntries = (env: NodeJS.ProcessEnv): [string, string][] => {
   const entries: [string, string][] = [];

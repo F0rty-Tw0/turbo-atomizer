@@ -2,6 +2,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { assertFreshAtomizerBuild } from './atomizer-build.spec.util.ts';
 import { e2eEnv } from './e2e-env.spec.util.ts';
 import { fillPorts } from './fixture-ports.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
@@ -29,6 +30,8 @@ const RM_RETRY_DELAY_MS = 200;
 
 /** Packs the built package into `root` and returns the tarball's file name. */
 const packAtomizer = async (root: string): Promise<string> => {
+  await assertFreshAtomizerBuild(ATOMIZER_DIST);
+
   const result = await runChecked(root, `npm pack ${quotedPath(ATOMIZER_DIST)} --pack-destination . --json`);
   const raw: unknown = JSON.parse(result.stdout);
   const [packed] = npmPackSchema.parse(raw);

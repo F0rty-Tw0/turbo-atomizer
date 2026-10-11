@@ -17,7 +17,8 @@ const { values } = parseArgs({ options });
 const routes = {
   '/index.html': [200, {}],
   '/r': [302, { location: '/index.html' }],
-  '/r-missing': [302, { location: '/missing' }]
+  '/r-missing': [302, { location: '/missing' }],
+  '/r-invalid': [302, { location: 'http://[' }]
 };
 
 const handle = (request, response) => {

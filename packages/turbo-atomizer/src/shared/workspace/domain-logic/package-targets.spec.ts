@@ -50,4 +50,26 @@ describe('FEATURE: package targets', (): void => {
       expect(targets).toEqual([join(copy.directory, 'apps/e')]);
     });
   });
+
+  describe('GIVEN an init-npm copy with a stray pnpm-workspace.yaml and a configured test package', (): void => {
+    let copy: FixtureCopy;
+    let testPackageDir: string;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('init-npm');
+      testPackageDir = join(copy.directory, 'apps/web-e2e');
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'tools/*'\n");
+      await writeFile(join(testPackageDir, 'turbo-atomizer.json'), '{}\n');
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it('WHEN configured packages are found THEN the package.json workspaces are read and the test package is returned', async (): Promise<void> => {
+      const packages = await findConfiguredPackages(copy.directory);
+
+      expect(packages).toEqual([testPackageDir]);
+    });
+  });
 });

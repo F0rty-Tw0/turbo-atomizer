@@ -42,6 +42,9 @@ export type TaskRun = {
   readonly durationMs: number | null;
 };
 
+/** Whether `summarizedRun` throws when the run summary lists no task; `optional` only where no task is expected to run. */
+export type SummaryPolicy = 'required' | 'optional';
+
 export type TurboRun = {
   readonly result: RunResult;
   readonly tasks: TaskRun[];
