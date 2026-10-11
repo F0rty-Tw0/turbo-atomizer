@@ -12,7 +12,7 @@ import { MERGE_STATUS_FILE, PASSED_STATUS } from '../common/reports.const.ts';
 import { collectBlobs, createBlobDir, removeBlobDir } from '../data-access/blob-collect.store.ts';
 import { removeMergeConfig, writeMergeConfig } from '../data-access/merge-config.store.ts';
 import { readMergeStatus } from '../data-access/merge-status.store.ts';
-import { blobCountWarning } from '../utils/blob-count.util.ts';
+import { blobCountWarning, missingBlobMessage } from '../utils/blob-count.util.ts';
 import { toFileTaskPaths } from '../utils/file-tasks.util.ts';
 import { renderMergeConfig } from '../utils/merge-config.util.ts';
 
@@ -76,15 +76,26 @@ const runMerge = async (run: MergeRun): Promise<number> => {
   }
 };
 
+/** A file task that ran without leaving a blob crashed before Playwright reported, so the merge fails even when the rest pass. */
+const missingExitCode = (packageDir: string, missing: string[]): number => {
+  if (missing.length === 0) return 0;
+
+  return failMerge(packageDir, missingBlobMessage(missing));
+};
+
 const mergeBlobs = async (run: MergeRun, slugs: string[]): Promise<number> => {
-  const blobCount = await collectBlobs(run.packageDir, slugs, run.blobDir);
-  const warning = blobCountWarning(blobCount, slugs.length);
+  const blobs = await collectBlobs(run.packageDir, slugs, run.blobDir);
+  const warning = blobCountWarning(blobs, slugs.length);
 
   if (warning !== undefined) process.stderr.write(`${warning} Package: ${run.packageDir}\n`);
 
-  if (blobCount === 0) return 0;
+  const missingCode = missingExitCode(run.packageDir, blobs.missing);
 
-  return runMerge(run);
+  if (blobs.copied === 0) return missingCode;
+
+  const mergeCode = await runMerge(run);
+
+  return Math.max(mergeCode, missingCode);
 };
 
 /**

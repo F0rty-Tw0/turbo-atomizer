@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { mergeReports } from './merge-reports.ts';
 import { runPlaywrightMerge } from '../../shared/playwright/data-access/playwright-merge.process.ts';
 import type * as mergeProcess from '../../shared/playwright/data-access/playwright-merge.process.ts';
+import { toAtomSlug } from '../../sync/utils/atom-slug.util.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import { MERGE_CONFIG_FILE } from '../common/reports.const.ts';
@@ -30,6 +31,11 @@ const STATUS_REPORTER_PATH = join(import.meta.dirname, '../../merge-status-repor
 const FAILING_SPEC = "import { expect, test } from '@playwright/test';\n\ntest('d fails', () => {\n  expect(1 + 1).toBe(3);\n});\n";
 
 const stderrText = (calls: unknown[][]): string => calls.map(([chunk]): string => String(chunk)).join('');
+
+/** What exec leaves when a file task crashes before Playwright writes its blob, such as a failed server lease. */
+const writeEmptySlugDir = async (packageDir: string, taskPath: string): Promise<void> => {
+  await mkdir(join(packageDir, '.atomizer', toAtomSlug(taskPath)), { recursive: true });
+};
 
 describe('FEATURE: merge reports', (): void => {
   afterEach((): void => {
@@ -155,6 +161,75 @@ describe('FEATURE: merge reports', (): void => {
 
         expect(blobExitCode).toBe(1);
         expect(exitCode).toBe(1);
+      },
+      MERGE_TIMEOUT_MS
+    );
+  });
+
+  describe('GIVEN a package with a blob for one file task and another file task that ran without a blob', (): void => {
+    let copy: FixtureCopy;
+    let packageDir: string;
+    let exitCode: number;
+    let stderr: string;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+      packageDir = await writeMergeFixture(copy.directory, ['tests/a.spec.ts', 'tests/b.spec.ts']);
+      await runBlobReport(packageDir, 'tests/a.spec.ts');
+      await writeEmptySlugDir(packageDir, 'tests/b.spec.ts');
+
+      const spy = vi.spyOn(process.stderr, 'write');
+
+      exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+      stderr = stderrText(spy.mock.calls);
+      spy.mockRestore();
+    }, MERGE_TIMEOUT_MS);
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    describe('WHEN the reports are merged', (): void => {
+      it('THEN it exits 1', (): void => {
+        expect(exitCode).toBe(1);
+      });
+
+      it('THEN stderr names the file task that ran but left no blob report', (): void => {
+        expect(stderr).toContain('1 file task ran but left no blob report');
+        expect(stderr).toContain(toAtomSlug('tests/b.spec.ts'));
+      });
+
+      it('THEN the merged report still holds the tests of the blob it found', async (): Promise<void> => {
+        const files = await readMergedFiles(packageDir);
+
+        expect(files).toEqual(['a.spec.ts']);
+      });
+    });
+  });
+
+  describe('GIVEN a package whose only file task ran without a blob', (): void => {
+    let copy: FixtureCopy;
+    let packageDir: string;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+      packageDir = await writeMergeFixture(copy.directory, ['tests/a.spec.ts']);
+      await writeEmptySlugDir(packageDir, 'tests/a.spec.ts');
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it(
+      'WHEN the reports are merged THEN it exits 1 without running a merge',
+      async (): Promise<void> => {
+        vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+
+        expect(exitCode).toBe(1);
+        expect(runPlaywrightMerge).not.toHaveBeenCalled();
       },
       MERGE_TIMEOUT_MS
     );
