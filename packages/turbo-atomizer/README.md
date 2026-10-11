@@ -247,14 +247,14 @@ npx turbo run e2e-ci--tests/login.spec.ts --filter=web-e2e
 
 All commands except `init` target every package that has an atomizer config. Pass `--package <dir>` to choose one test package. `init` uses the current directory when it holds a Playwright config, or the directory from `--package`.
 
-| Command                                          | What it does                                                                                                         | Exit code                           |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `init [--package <dir>] [--generated-dir <dir>]` | Sets up a test package. See [Set up a test package](#set-up-a-test-package).                                         | 1 on any error                      |
-| `sync [--check]`                                 | Regenerates the file tasks. With `--check`, writes nothing and prints a summary of added, removed and changed tasks. | `--check`: 1 if stale               |
-| `doctor`                                         | Checks the setup. See below.                                                                                         | 1 on any error finding              |
-| `affected [-- <turbo run args>]`                 | Runs only the affected file tasks.                                                                                   | turbo's, else 0                     |
-| `merge-reports`                                  | Merges the per-file blob reports into one report. See below.                                                         | 1 if the merged report has failures |
-| `--version`, `--help`                            | Print the version or the usage text.                                                                                 | 0                                   |
+| Command                                          | What it does                                                                                                         | Exit code                       |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `init [--package <dir>] [--generated-dir <dir>]` | Sets up a test package. See [Set up a test package](#set-up-a-test-package).                                         | 1 on any error                  |
+| `sync [--check]`                                 | Regenerates the file tasks. With `--check`, writes nothing and prints a summary of added, removed and changed tasks. | `--check`: 1 if stale           |
+| `doctor`                                         | Checks the setup. See below.                                                                                         | 1 on any error finding          |
+| `affected [-- <turbo run args>]`                 | Runs only the affected file tasks.                                                                                   | turbo's, else 0                 |
+| `merge-reports`                                  | Merges the per-file blob reports into one report. See below.                                                         | 1 on failures or a missing blob |
+| `--version`, `--help`                            | Print the version or the usage text.                                                                                 | 0                               |
 
 An unknown command or option prints the usage text and exits 2.
 
@@ -293,8 +293,10 @@ A clean package prints `apps/web-e2e: ok`. Finding codes are stable, so scripts 
 Each file task writes a Playwright blob report to `.atomizer/<slug>/blob.zip`, and turbo caches it with the task. `merge-reports` collects the blobs of the current file tasks and runs `playwright merge-reports` with your configured reporters, so cache-restored files appear in the merged report.
 
 - Run it after the suite, even when the suite failed. It exits 1 when the merged report has failures.
-- It warns when the number of blobs differs from the number of file tasks. That is expected after `affected`.
-- With zero blobs it warns and exits 0.
+- It exits 1 when a file task ran (its `.atomizer/<slug>/` dir exists) but left no `blob.zip`, because that file crashed before Playwright reported. The blobs that do exist are still merged.
+- It warns when some file tasks never ran, so the merged report covers only the files that did. That is expected after `affected` or a filter. When no file task ran at all, it warns and exits 0.
+- It warns and exits 0 when the generated `turbo.json` lists no file tasks.
+- It exits 1 when the Playwright config is not wrapped in `withAtomizer`, or the generated package has no `turbo.json` (run `sync`).
 - It writes a temporary `playwright.atomizer-merge.config.mjs` next to your Playwright config and deletes it afterwards.
 - On a developer machine it can merge blobs left by earlier runs of tasks the current run did not select. A fresh CI checkout does not.
 
