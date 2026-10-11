@@ -173,7 +173,7 @@ Validated with zod at load; a JSON schema is generated from the same zod schema 
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `task` | string | `"e2e-ci"` | Umbrella name and task-name prefix. |
+| `task` | string | `"e2e-ci"` | Umbrella name and task-name prefix. Letters, digits, `_`, `.`, `:` and `-`, starting with a letter, digit or `_`: turbo reads `#` as `package#task` and `^` as a dependency marker. |
 | `generatedPackage` | string | `tools/<test-package-dir-basename>-atoms` | Path of the generated package, relative to the workspace root. Written by `init`. |
 | `playwrightConfig` | string | first of `playwright.config.{ts,js,mts,mjs,cts,cjs}` | Config file name, in the test package root. |
 | `specGlobs` | string[] | `["**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}"]` | Excluded from every task's inputs. Every discovered spec must match one (checked by `sync` and `doctor`). |
