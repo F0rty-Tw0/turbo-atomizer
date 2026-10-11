@@ -36,8 +36,14 @@ export const MAX_PROBE_REDIRECTS = 10;
 
 export const SERVER_LOG_FILE = 'server.log';
 
-export const PIPE_TOKEN_FILE = 'turbo-atomizer-pipe.token';
+export const RENDEZVOUS_TOKEN_FILE = 'turbo-atomizer.token';
 
-export const PIPE_TOKEN_BYTES = 16;
+export const RENDEZVOUS_TOKEN_BYTES = 16;
 
-export const PIPE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+export const RENDEZVOUS_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+
+export const NONCE_BYTES = 16;
+
+export const NONCE_TIMEOUT_MS = 5000;
+
+export const MAX_NONCE_LINE_LENGTH = 256;

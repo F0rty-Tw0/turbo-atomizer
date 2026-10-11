@@ -2,9 +2,10 @@ import type { Socket } from 'node:net';
 
 import { startWebServers, stopWebServers } from './web-servers.ts';
 import type { ServerMessage, SupervisorEffect, SupervisorEvent, SupervisorState } from '../common/server-protocol.type.ts';
-import { INITIAL_SUPERVISOR_STATE, STARTING_INTERVAL_MS, STARTING_MESSAGE } from '../common/server.const.ts';
+import { INITIAL_SUPERVISOR_STATE, NONCE_TIMEOUT_MS, STARTING_INTERVAL_MS, STARTING_MESSAGE } from '../common/server.const.ts';
 import type { RunningServer, SupervisorLoopOptions } from '../common/server.type.ts';
-import { sendMessage } from '../data-access/rendezvous.socket.ts';
+import { readNonce, sendMessage, sendProof } from '../data-access/rendezvous.socket.ts';
+import { proofOf } from '../utils/rendezvous-proof.util.ts';
 import { reduceSupervisor } from '../utils/supervisor-state.util.ts';
 
 const CONNECT: SupervisorEvent = { type: 'connect' };
@@ -38,15 +39,8 @@ export class SupervisorLoop {
   }
 
   public readonly onConnection = (socket: Socket): void => {
-    if (this.state.phase === 'stopped') return void socket.destroy();
-
-    this.clients.add(socket);
     socket.on('error', ignoreSocketError);
-    socket.once('close', (): void => {
-      this.clients.delete(socket);
-      this.dispatch(DISCONNECT);
-    });
-    this.dispatch(CONNECT, socket);
+    void this.admit(socket);
   };
 
   public start(): void {
@@ -57,6 +51,24 @@ export class SupervisorLoop {
     if (failure === undefined) return void this.startServers();
 
     this.dispatch({ type: 'serverFailed', message: failure, logTail: '' });
+  }
+
+  /** Spec §7 handshake: no reply and no lease until the client's nonce arrives; the proof is then the first line it reads. */
+  private async admit(socket: Socket): Promise<void> {
+    const nonce = await readNonce(socket, NONCE_TIMEOUT_MS);
+    const isStopped = this.state.phase === 'stopped';
+
+    if (nonce === undefined || isStopped || socket.destroyed) return void socket.destroy();
+
+    const proof = proofOf(this.options.token, nonce);
+
+    sendProof(socket, proof);
+    this.clients.add(socket);
+    socket.once('close', (): void => {
+      this.clients.delete(socket);
+      this.dispatch(DISCONNECT);
+    });
+    this.dispatch(CONNECT, socket);
   }
 
   private readonly onHeartbeat = (): void => {

@@ -14,10 +14,11 @@ import { startWebServers, stopWebServers } from './web-servers.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
-import { STARTING_INTERVAL_MS, STARTING_MESSAGE } from '../common/server.const.ts';
+import { NONCE_TIMEOUT_MS, STARTING_INTERVAL_MS, STARTING_MESSAGE } from '../common/server.const.ts';
 import type { RunningServer, StartOutcome, SupervisorLoopOptions } from '../common/server.type.ts';
-import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
+import { connectSocket, onVerifiedMessages } from '../data-access/rendezvous-client.socket.ts';
 import { stopServer } from '../data-access/server.process.ts';
+import { TOKEN_STUB } from '../test/stubs/rendezvous-token.stub.ts';
 import { freePort, isAlive, waitUntil } from '../test/utils/static-server.spec.util.ts';
 
 const IDLE_MS = 300;
@@ -42,6 +43,17 @@ const stopThenReject = async (servers: RunningServer[]): Promise<void> => {
 
 /** A start that never settles, so the loop stays in its starting phase. */
 const neverStart = async (): Promise<StartOutcome> => new Promise((): undefined => undefined);
+
+const nextTurn = async (): Promise<void> => new Promise((resolve): void => void setImmediate(resolve));
+
+/** Yields real event-loop turns (fake timers leave `setImmediate` alone) until `holds` is true. */
+const until = async (holds: () => boolean): Promise<void> => {
+  while (!holds()) await nextTurn();
+};
+
+const onServerMessages = (socket: Socket, onMessage: (message: ServerMessage) => void): void => {
+  onVerifiedMessages(socket, TOKEN_STUB, { onMessage, onRefused: (): void => void socket.destroy() });
+};
 
 const collectText = (log: PassThrough): (() => string) => {
   let text = '';
@@ -123,7 +135,8 @@ describe('FEATURE: supervisor loop', (): void => {
         configFile: 'playwright.config.ts',
         idleMs: IDLE_MS,
         log: new PassThrough(),
-        startupFailure: undefined
+        startupFailure: undefined,
+        token: TOKEN_STUB
       };
     });
 
@@ -168,14 +181,14 @@ describe('FEATURE: supervisor loop', (): void => {
       async (): Promise<void> => {
         const loop = await listen(options);
         const leased = await connectSocket(socketPath);
+        const heard = collectMessages(leased);
 
-        await messagesUntilAnswer(leased);
+        await waitUntil((): boolean => heard.some((message): boolean => message.state === 'ready'), LOOP_TIMEOUT_MS);
 
-        const broadcast = messagesUntilAnswer(leased);
         const pid = await serverPid(copy.directory);
 
         process.kill(pid, 'SIGKILL');
-        await broadcast;
+        await waitUntil((): boolean => heard.some((message): boolean => message.state === 'failed'), LOOP_TIMEOUT_MS);
 
         const late = await connectSocket(socketPath);
         const messages = await messagesUntilAnswer(late);
@@ -224,7 +237,8 @@ describe('FEATURE: supervisor loop', (): void => {
         configFile: 'playwright.config.ts',
         idleMs: IDLE_MS,
         log: new PassThrough(),
-        startupFailure: undefined
+        startupFailure: undefined,
+        token: TOKEN_STUB
       };
 
       await listen(options);
@@ -241,6 +255,41 @@ describe('FEATURE: supervisor loop', (): void => {
     });
   });
 
+  describe('GIVEN a client that connects but never sends a nonce', (): void => {
+    beforeEach((): void => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.mocked(startWebServers).mockImplementationOnce(neverStart);
+    });
+
+    afterEach((): void => {
+      vi.useRealTimers();
+    });
+
+    it('WHEN 5 s pass THEN the loop drops it without a reply', async (): Promise<void> => {
+      const options: SupervisorLoopOptions = {
+        packageDir: copy.directory,
+        configFile: 'playwright.config.ts',
+        idleMs: IDLE_MS,
+        log: new PassThrough(),
+        startupFailure: undefined,
+        token: TOKEN_STUB
+      };
+      let received = '';
+
+      await listen(options);
+
+      const client = await connectSocket(socketPath);
+      const closed = once(client, 'close');
+
+      client.on('data', (chunk: Buffer): void => void (received += chunk.toString()));
+      await until((): boolean => vi.getTimerCount() > 0);
+      await vi.advanceTimersByTimeAsync(NONCE_TIMEOUT_MS);
+      await closed;
+
+      expect(received).toBe('');
+    });
+  });
+
   describe('GIVEN a startup failure', (): void => {
     it(
       'WHEN a client connects THEN it hears failed with that message and the loop finishes',
@@ -250,7 +299,8 @@ describe('FEATURE: supervisor loop', (): void => {
           configFile: 'playwright.config.ts',
           idleMs: IDLE_MS,
           log: new PassThrough(),
-          startupFailure: 'invalid turbo-atomizer.json'
+          startupFailure: 'invalid turbo-atomizer.json',
+          token: TOKEN_STUB
         };
         const loop = await listen(options);
         const client = await connectSocket(socketPath);

@@ -7,8 +7,8 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ensurePrivateDir, readOrCreatePipeToken, refuseForeignSocket } from './rendezvous.path.ts';
-import { PIPE_TOKEN_PATTERN } from '../common/server.const.ts';
+import { ensurePrivateDir, readOrCreateToken, refuseForeignSocket } from './rendezvous.path.ts';
+import { RENDEZVOUS_TOKEN_PATTERN } from '../common/server.const.ts';
 
 const PERMISSION_BITS = 0o777;
 const PIPE_TOKEN = '0123456789abcdef0123456789abcdef';
@@ -121,14 +121,14 @@ describe('FEATURE: rendezvous path checks', (): void => {
     it('WHEN the token is read THEN a 32-char hex token is written and returned', async (): Promise<void> => {
       const tokenPath = join(directory, 'pipe.token');
 
-      const token = readOrCreatePipeToken(tokenPath);
+      const token = readOrCreateToken(tokenPath);
 
-      expect(token).toMatch(PIPE_TOKEN_PATTERN);
+      expect(token).toMatch(RENDEZVOUS_TOKEN_PATTERN);
       await expect(readFile(tokenPath, 'utf8')).resolves.toBe(token);
     });
 
     it('WHEN the token is read THEN no draft file is left behind', async (): Promise<void> => {
-      readOrCreatePipeToken(join(directory, 'pipe.token'));
+      readOrCreateToken(join(directory, 'pipe.token'));
 
       await expect(readdir(directory)).resolves.toEqual(['pipe.token']);
     });
@@ -140,7 +140,7 @@ describe('FEATURE: rendezvous path checks', (): void => {
 
       await writeFile(tokenPath, PIPE_TOKEN);
 
-      const token = readOrCreatePipeToken(tokenPath);
+      const token = readOrCreateToken(tokenPath);
 
       expect(token).toBe(PIPE_TOKEN);
     });
@@ -152,7 +152,7 @@ describe('FEATURE: rendezvous path checks', (): void => {
 
       await writeFile(tokenPath, '');
 
-      expect((): string => readOrCreatePipeToken(tokenPath)).toThrow(`${tokenPath} does not hold a 32-char hex token`);
+      expect((): string => readOrCreateToken(tokenPath)).toThrow(`${tokenPath} does not hold a 32-char hex token`);
     });
   });
 });

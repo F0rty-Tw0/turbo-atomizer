@@ -3,7 +3,7 @@ import { existsSync, linkSync, readFileSync, rmSync, writeFileSync } from 'node:
 import { lstat, mkdir } from 'node:fs/promises';
 
 import { ServerFailedException } from '../common/server-failed.exception.ts';
-import { PIPE_TOKEN_BYTES, PIPE_TOKEN_PATTERN } from '../common/server.const.ts';
+import { RENDEZVOUS_TOKEN_BYTES, RENDEZVOUS_TOKEN_PATTERN } from '../common/server.const.ts';
 import { errorCode } from '../utils/errno.util.ts';
 
 const PRIVATE_DIR_MODE = 0o700;
@@ -50,9 +50,9 @@ export const refuseForeignSocket = async (socketPath: string, uid: number): Prom
 };
 
 /** Writes a fresh token to a draft, then hard-links it into place, so a concurrent reader never sees a half-written token. */
-const createPipeToken = (tokenPath: string): void => {
+const createToken = (tokenPath: string): void => {
   const draftPath = `${tokenPath}.${String(process.pid)}`;
-  const token = randomBytes(PIPE_TOKEN_BYTES).toString('hex');
+  const token = randomBytes(RENDEZVOUS_TOKEN_BYTES).toString('hex');
 
   writeFileSync(draftPath, token, { mode: 0o600 });
 
@@ -68,16 +68,16 @@ const createPipeToken = (tokenPath: string): void => {
 };
 
 /**
- * Windows: this user's random pipe token, created on first use in the per-user tmp dir and reused after, so no other
- * user can guess the pipe name and listen on it first (spec §7 Rendezvous).
+ * This user's random rendezvous token, created on first use and reused after. It keys the handshake proof on every
+ * platform and names the pipe on Windows (spec §7 Rendezvous); it must live where only this user can read it.
  */
-export const readOrCreatePipeToken = (tokenPath: string): string => {
+export const readOrCreateToken = (tokenPath: string): string => {
   const hasToken = existsSync(tokenPath);
 
-  if (!hasToken) createPipeToken(tokenPath);
+  if (!hasToken) createToken(tokenPath);
 
   const token = readFileSync(tokenPath, 'utf8');
-  const isToken = PIPE_TOKEN_PATTERN.test(token);
+  const isToken = RENDEZVOUS_TOKEN_PATTERN.test(token);
 
   if (!isToken) throw new ServerFailedException(`${tokenPath} does not hold a 32-char hex token; remove it and retry`, '');
 

@@ -2,7 +2,7 @@ import type { Socket } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-import { ownRendezvousPath, preparePrivateDir, refuseForeignListener } from './rendezvous.ts';
+import { ownRendezvousPath, ownRendezvousToken, preparePrivateDir, refuseForeignListener } from './rendezvous.ts';
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
@@ -13,7 +13,7 @@ import {
   SUPERVISOR_RESPAWN_MS,
   SUPERVISOR_SPAWNS
 } from '../common/server.const.ts';
-import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
+import { connectSocket, onVerifiedMessages } from '../data-access/rendezvous-client.socket.ts';
 import { spawnSupervisor } from '../data-access/supervisor.process.ts';
 import { nextProbeDelay } from '../utils/probe-schedule.util.ts';
 
@@ -78,8 +78,11 @@ const leaseOf = (socket: Socket, env: Record<string, string>): ServerLease => {
   return lease;
 };
 
-/** Spec §7 Start step 3: wait for `ready` or `failed` while `starting` keeps arriving; undefined when the supervisor hung up first. */
-const awaitAnswer = async (socket: Socket): Promise<ServerLease | undefined> => {
+/**
+ * Spec §7 Start step 3: wait for `ready` or `failed` while `starting` keeps arriving; undefined when the supervisor hung up first.
+ * A listener that cannot prove it holds `token` is refused before any of its messages, so its `env` is never used.
+ */
+const awaitAnswer = async (socket: Socket, socketPath: string, token: string): Promise<ServerLease | undefined> => {
   return new Promise((settle, reject): void => {
     const fail = (error: ServerFailedException): void => {
       socket.destroy();
@@ -87,6 +90,7 @@ const awaitAnswer = async (socket: Socket): Promise<ServerLease | undefined> => 
     };
 
     const onSilence = (): void => fail(new ServerFailedException('the supervisor sent nothing for 30 s', ''));
+    const onRefused = (): void => fail(new ServerFailedException(`${socketPath} did not prove it holds this user's rendezvous token`, ''));
     let silence = setTimeout(onSilence, CLIENT_SILENCE_MS);
 
     const onMessage = (message: ServerMessage): void => {
@@ -109,7 +113,7 @@ const awaitAnswer = async (socket: Socket): Promise<ServerLease | undefined> => 
       clearTimeout(silence);
       settle(undefined);
     });
-    onServerMessages(socket, onMessage);
+    onVerifiedMessages(socket, token, { onMessage, onRefused });
   });
 };
 
@@ -123,11 +127,13 @@ export const ensureServer = async (packageDir: string, configFile: string, super
 
   await preparePrivateDir(socketPath);
 
+  const token = ownRendezvousToken(socketPath);
+
   for (let attempt = 0; attempt < LEASE_ATTEMPTS; attempt += 1) {
     if (attempt > 0) await sleep(nextProbeDelay(attempt - 1));
 
     const socket = await connectSupervisor(socketPath, root, configFile, supervisorPath);
-    const lease = await awaitAnswer(socket);
+    const lease = await awaitAnswer(socket, socketPath, token);
 
     if (lease !== undefined) return lease;
   }

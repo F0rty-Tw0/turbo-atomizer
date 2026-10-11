@@ -2,13 +2,12 @@ import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ownRendezvousPath } from './rendezvous.ts';
+import { ownRendezvousPath, ownRendezvousToken } from './rendezvous.ts';
 import { ensureServer } from './server-lease.ts';
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
@@ -18,6 +17,8 @@ import { CLIENT_SILENCE_MS, LEASE_ATTEMPTS, PROBE_BACKOFF_MS } from '../common/s
 import { acquireLock, releaseLock } from '../data-access/rendezvous.lock.ts';
 import { refuseForeignSocket } from '../data-access/rendezvous.path.ts';
 import type { StaticServer } from '../test/common/server.type.ts';
+import { OTHER_TOKEN_STUB, POISONED_READY_LINE_STUB } from '../test/stubs/rendezvous-token.stub.ts';
+import { listenAsSupervisor } from '../test/utils/fake-supervisor.spec.util.ts';
 import { createStaleSocket } from '../test/utils/stale-socket.spec.util.ts';
 import { exitedPid, freePort, isAlive, startStaticServer, waitUntil } from '../test/utils/static-server.spec.util.ts';
 import { killSupervisor, startedPids } from '../test/utils/supervisor-cleanup.spec.util.ts';
@@ -77,6 +78,7 @@ describe('FEATURE: server lease', (): void => {
   let port: number;
   let socketPath: string;
   let lockPath: string;
+  let token: string;
 
   const supervisorExited = async (): Promise<boolean> => waitUntil((): boolean => !existsSync(lockPath), IDLE_MS + STOP_GRACE_MS);
 
@@ -86,6 +88,7 @@ describe('FEATURE: server lease', (): void => {
     socketPath = ownRendezvousPath(copy.directory);
     lockPath = lockPathOf(socketPath);
     await mkdir(dirname(socketPath), { recursive: true, mode: 0o700 });
+    token = ownRendezvousToken(socketPath);
     vi.stubEnv('ATOMIZER_FIXTURE_PORT', String(port));
     vi.stubEnv('ATOMIZER_FIXTURE_SERVER', 'ok');
   });
@@ -252,12 +255,10 @@ describe('FEATURE: server lease', (): void => {
 
     beforeEach(async (): Promise<void> => {
       connectedAt = [];
-      hangingUp = createServer((socket: Socket): void => {
+      hangingUp = await listenAsSupervisor(socketPath, token, (socket: Socket): void => {
         connectedAt.push(Date.now());
         socket.destroy();
       });
-      hangingUp.listen(socketPath);
-      await once(hangingUp, 'listening');
     });
 
     afterEach(async (): Promise<void> => {
@@ -281,21 +282,30 @@ describe('FEATURE: server lease', (): void => {
     }, CASE_TIMEOUT_MS);
   });
 
+  describe('GIVEN a squatter on the socket that cannot prove the token', (): void => {
+    it('WHEN an exec leases the server THEN it rejects naming the socket, so the poisoned env is never used', async (): Promise<void> => {
+      const squatter = await listenAsSupervisor(socketPath, OTHER_TOKEN_STUB, (socket: Socket): void => void socket.write(POISONED_READY_LINE_STUB));
+
+      const request = lease(copy.directory);
+
+      await expect(request).rejects.toThrow(`${socketPath} did not prove it holds this user's rendezvous token`);
+      squatter.close();
+    }, CASE_TIMEOUT_MS);
+  });
+
   describe('GIVEN a supervisor that hangs up on the first connection and answers ready on the next', (): void => {
     let flaky: Server;
 
     beforeEach(async (): Promise<void> => {
       let connections = 0;
 
-      flaky = createServer((socket: Socket): void => {
+      flaky = await listenAsSupervisor(socketPath, token, (socket: Socket): void => {
         connections += 1;
 
         if (connections === 1) return void socket.destroy();
 
         socket.write(READY_LINE);
       });
-      flaky.listen(socketPath);
-      await once(flaky, 'listening');
     });
 
     afterEach(async (): Promise<void> => {
@@ -318,9 +328,7 @@ describe('FEATURE: server lease', (): void => {
 
     beforeEach(async (): Promise<void> => {
       served = [];
-      quiet = createServer((socket: Socket): number => served.push(socket));
-      quiet.listen(socketPath);
-      await once(quiet, 'listening');
+      quiet = await listenAsSupervisor(socketPath, token, (socket: Socket): number => served.push(socket));
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
       const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
@@ -339,7 +347,7 @@ describe('FEATURE: server lease', (): void => {
       const request = lease(copy.directory);
       const state = stateOf(request);
 
-      await until((): boolean => vi.getTimerCount() > 0);
+      await until((): boolean => served.length > 0);
       await vi.advanceTimersByTimeAsync(CLIENT_SILENCE_MS - 1);
 
       const before = state();
@@ -354,10 +362,12 @@ describe('FEATURE: server lease', (): void => {
       const request = lease(copy.directory);
       const state = stateOf(request);
 
-      await until((): boolean => vi.getTimerCount() > 0);
+      await until((): boolean => served.length > 0);
+      const handshakeClears = cleared();
+
       await vi.advanceTimersByTimeAsync(HEARTBEAT_AT_MS);
       served[0]?.write(STARTING_LINE);
-      await until((): boolean => cleared() > 0);
+      await until((): boolean => cleared() > handshakeClears);
       await vi.advanceTimersByTimeAsync(CLIENT_SILENCE_MS - 1);
 
       const waiting = state();
@@ -375,10 +385,12 @@ describe('FEATURE: server lease', (): void => {
       const request = lease(copy.directory);
       const rejection = expect(request).rejects.toThrow('the supervisor sent nothing for 30 s');
 
-      await until((): boolean => vi.getTimerCount() > 0);
+      await until((): boolean => served.length > 0);
+      const handshakeClears = cleared();
+
       await vi.advanceTimersByTimeAsync(HEARTBEAT_AT_MS);
       served[0]?.write(STARTING_LINE);
-      await until((): boolean => cleared() > 0);
+      await until((): boolean => cleared() > handshakeClears);
       await vi.advanceTimersByTimeAsync(CLIENT_SILENCE_MS);
 
       await rejection;

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import type { Writable } from 'node:stream';
 
-import { claimRendezvous, ownRendezvousPath, releaseRendezvous } from './rendezvous.ts';
+import { claimRendezvous, ownRendezvousPath, ownRendezvousToken, preparePrivateDir, releaseRendezvous } from './rendezvous.ts';
 import { SupervisorLoop } from './supervisor-loop.ts';
 import { DEFAULT_SERVER_IDLE_MS } from '../../shared/atomizer/common/atomizer.const.ts';
 import { loadAtomizerConfig } from '../../shared/config/domain-logic/atomizer-config.ts';
@@ -31,7 +31,11 @@ export const runSupervisor = async (packageDir: string, configFile: string, log:
   const root = resolve(packageDir);
   const socketPath = ownRendezvousPath(root);
   const settings = await loadSettings(root);
-  const options: SupervisorLoopOptions = { packageDir: root, configFile, log, ...settings };
+
+  await preparePrivateDir(socketPath);
+
+  const token = ownRendezvousToken(socketPath);
+  const options: SupervisorLoopOptions = { packageDir: root, configFile, log, token, ...settings };
   const loop = new SupervisorLoop(options);
   const server = await claimRendezvous(socketPath, loop.onConnection);
 

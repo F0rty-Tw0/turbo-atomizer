@@ -7,12 +7,12 @@ import { PassThrough } from 'node:stream';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ownRendezvousPath } from './rendezvous.ts';
+import { ownRendezvousPath, ownRendezvousToken } from './rendezvous.ts';
 import { runSupervisor } from './supervisor.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
-import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
+import { connectSocket, onVerifiedMessages } from '../data-access/rendezvous-client.socket.ts';
 import { freePort } from '../test/utils/static-server.spec.util.ts';
 import { lockPathOf } from '../utils/rendezvous-path.util.ts';
 
@@ -39,13 +39,13 @@ const connectWhenListening = async (socketPath: string): Promise<Socket> => {
   return connectSocket(socketPath);
 };
 
-const readyMessage = async (socket: Socket): Promise<ServerMessage> => {
-  return new Promise((resolve): void => {
+const readyMessage = async (socket: Socket, token: string): Promise<ServerMessage> => {
+  return new Promise((resolve, reject): void => {
     const onMessage = (message: ServerMessage): void => {
       if (message.state !== 'starting') resolve(message);
     };
 
-    onServerMessages(socket, onMessage);
+    onVerifiedMessages(socket, token, { onMessage, onRefused: reject });
   });
 };
 
@@ -106,7 +106,8 @@ describe('FEATURE: supervisor', (): void => {
       const run = runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
 
       const client = await connectWhenListening(socketPath);
-      const message = await readyMessage(client);
+      const token = ownRendezvousToken(socketPath);
+      const message = await readyMessage(client, token);
 
       client.destroy();
       await run;
@@ -126,7 +127,9 @@ describe('FEATURE: supervisor', (): void => {
       const run = runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
       const client = await connectWhenListening(socketPath);
 
-      await readyMessage(client);
+      const token = ownRendezvousToken(socketPath);
+
+      await readyMessage(client, token);
       client.destroy();
       await run;
 

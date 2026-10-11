@@ -8,9 +8,13 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { claimRendezvous, releaseRendezvous, rendezvousPathOn } from './rendezvous.ts';
-import { PIPE_TOKEN_FILE } from '../common/server.const.ts';
+import { claimRendezvous, releaseRendezvous, rendezvousPathOn, rendezvousTokenOn } from './rendezvous.ts';
+import type { ServerMessage } from '../common/server-protocol.type.ts';
+import { RENDEZVOUS_TOKEN_FILE } from '../common/server.const.ts';
+import { connectSocket, onVerifiedMessages } from '../data-access/rendezvous-client.socket.ts';
 import { acquireLock } from '../data-access/rendezvous.lock.ts';
+import { OTHER_TOKEN_STUB, POISONED_READY_LINE_STUB } from '../test/stubs/rendezvous-token.stub.ts';
+import { listenAsSupervisor } from '../test/utils/fake-supervisor.spec.util.ts';
 
 const PACKAGE_DIR = 'C:\\repo\\apps\\web-e2e';
 
@@ -110,7 +114,7 @@ describe('FEATURE: rendezvous', (): void => {
     it('WHEN the path is built THEN it is a pipe named after the token stored in the tmp dir', async (): Promise<void> => {
       const path = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
 
-      const token = await readFile(join(directory, PIPE_TOKEN_FILE), 'utf8');
+      const token = await readFile(join(directory, RENDEZVOUS_TOKEN_FILE), 'utf8');
       const expected = new RegExp(String.raw`^\\\\\.\\pipe\\turbo-atomizer-${token}-[0-9a-f]{12}$`);
 
       expect(path).toMatch(expected);
@@ -148,6 +152,44 @@ describe('FEATURE: rendezvous', (): void => {
       const theirs = rendezvousPathOn(PACKAGE_DIR, 'win32', otherDirectory);
 
       expect(mine).not.toBe(theirs);
+    });
+  });
+
+  describe('GIVEN Windows', (): void => {
+    it('WHEN the token is read THEN it is the one stored in the tmp dir that names the pipe', async (): Promise<void> => {
+      const path = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+
+      const token = rendezvousTokenOn(path, 'win32', directory);
+
+      await expect(readFile(join(directory, RENDEZVOUS_TOKEN_FILE), 'utf8')).resolves.toBe(token);
+      expect(path).toContain(token);
+    });
+  });
+
+  describe('GIVEN POSIX', (): void => {
+    it('WHEN the token is read THEN it is stored in the private socket dir, not in the shared tmp dir', async (): Promise<void> => {
+      const token = rendezvousTokenOn(socketPath, 'linux', tmpdir());
+
+      await expect(readFile(join(directory, RENDEZVOUS_TOKEN_FILE), 'utf8')).resolves.toBe(token);
+      await expect(exists(join(tmpdir(), RENDEZVOUS_TOKEN_FILE))).resolves.toBe(false);
+    });
+  });
+
+  describe('GIVEN Windows and a squatter that knows the pipe name but not the token', (): void => {
+    it('WHEN a client checks it with the token from the tmp dir THEN it is refused before any message', async (): Promise<void> => {
+      const token = rendezvousTokenOn(socketPath, 'win32', directory);
+      const squatter = await listenAsSupervisor(socketPath, OTHER_TOKEN_STUB, (socket: Socket): void => void socket.end(POISONED_READY_LINE_STUB));
+      const client = await connectSocket(socketPath);
+      const messages: ServerMessage[] = [];
+
+      const isRefused = await new Promise<boolean>((resolve): void => {
+        onVerifiedMessages(client, token, { onMessage: (message): number => messages.push(message), onRefused: (): void => resolve(true) });
+      });
+
+      client.destroy();
+      squatter.close();
+      expect(isRefused).toBe(true);
+      expect(messages).toEqual([]);
     });
   });
 });
