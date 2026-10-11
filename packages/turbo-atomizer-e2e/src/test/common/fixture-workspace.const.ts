@@ -5,6 +5,8 @@ export const FIXTURE_BASES: Partial<Record<FixtureName, FixtureName>> = { 'npm-b
 
 export const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml';
 
+export const ATOMIZER_PACKAGE = 'turbo-atomizer';
+
 export const TEST_PACKAGE_DIR = 'apps/web-e2e';
 
 export const ATOMS_TURBO_JSON = 'tools/web-e2e-atoms/turbo.json';
@@ -47,6 +49,9 @@ export const E2E_TURBO_VERSION_ENV = 'ATOMIZER_E2E_TURBO_VERSION';
 
 /** Set for one run, makes every pnpm-basic test hold open for 120 s; turbo passes it through without hashing it. */
 export const E2E_HANG_ENV = 'ATOMIZER_E2E_HANG';
+
+/** Fails the pnpm-basic profile spec when `1`; the fixture passes it through unhashed (`globalPassThroughEnv`). */
+export const FAIL_TOGGLE_ENV = 'ATOMIZER_E2E_FAIL';
 
 const GIT_IDENTITY = 'turbo-atomizer-e2e';
 

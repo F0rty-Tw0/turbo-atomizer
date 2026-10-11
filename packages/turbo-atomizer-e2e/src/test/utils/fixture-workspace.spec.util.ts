@@ -8,7 +8,13 @@ import { fillPorts } from './fixture-ports.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
 import { quotedPath, runChecked, runCommand } from './workspace-command.spec.util.ts';
 import { settleWorkspaceProcesses } from './workspace-processes.spec.util.ts';
-import { FIXTURE_BASES, INSTALL_COMMANDS, PNPM_WORKSPACE_FILE, PROCESS_SETTLE_MS } from '../common/fixture-workspace.const.ts';
+import {
+  ATOMIZER_PACKAGE,
+  FIXTURE_BASES,
+  INSTALL_COMMANDS,
+  PNPM_WORKSPACE_FILE,
+  PROCESS_SETTLE_MS
+} from '../common/fixture-workspace.const.ts';
 import type {
   CommandEnv,
   FixtureName,
@@ -48,7 +54,7 @@ const addAtomizerDependency = async (root: string, tarball: string): Promise<voi
   const raw: unknown = JSON.parse(text);
   const manifest = rootManifestSchema.parse(raw);
   const { turboVersion } = e2eEnv();
-  const devDependencies: Record<string, string> = { ...manifest.devDependencies, 'turbo-atomizer': `file:${tarball}` };
+  const devDependencies: Record<string, string> = { ...manifest.devDependencies, [ATOMIZER_PACKAGE]: `file:${tarball}` };
 
   if (turboVersion !== undefined) devDependencies['turbo'] = turboVersion;
 
@@ -114,16 +120,13 @@ const workspaceAt = (root: string): FixtureWorkspace => {
   return workspace;
 };
 
-/**
- * Copies fixture `name` to a fresh dir under `os.tmpdir()` and makes it a consumer repo before `turbo-atomizer init`:
- * the built package installed from a tarball, every file committed on `main`. Turbo hashes git-ignored files until a repo's first commit.
- */
-export const createFixtureWorkspace = async (name: FixtureName, pm: PackageManager): Promise<FixtureWorkspace> => {
-  const root = await mkdtemp(join(tmpdir(), `ta-e2e-${name}-`));
+/** Makes a fresh dir under `os.tmpdir()`, runs `prepare` in it, and disposes the dir when `prepare` throws. */
+export const createWorkspace = async (prefix: string, prepare: (root: string) => Promise<void>): Promise<FixtureWorkspace> => {
+  const root = await mkdtemp(join(tmpdir(), `ta-e2e-${prefix}-`));
   const workspace = workspaceAt(root);
 
   try {
-    await prepareWorkspace(root, name, pm);
+    await prepare(root);
   } catch (error) {
     await workspace.dispose();
 
@@ -131,4 +134,14 @@ export const createFixtureWorkspace = async (name: FixtureName, pm: PackageManag
   }
 
   return workspace;
+};
+
+/**
+ * Copies fixture `name` to a fresh dir under `os.tmpdir()` and makes it a consumer repo before `turbo-atomizer init`:
+ * the built package installed from a tarball, every file committed on `main`. Turbo hashes git-ignored files until a repo's first commit.
+ */
+export const createFixtureWorkspace = async (name: FixtureName, pm: PackageManager): Promise<FixtureWorkspace> => {
+  const prepare = async (root: string): Promise<void> => prepareWorkspace(root, name, pm);
+
+  return createWorkspace(name, prepare);
 };
