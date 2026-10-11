@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/packages/turbo-atomizer"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/test/**", "src/**/*.spec.ts", "**/fixtures/**", "**/tmp/**"]
+}

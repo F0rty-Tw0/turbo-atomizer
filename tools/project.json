@@ -1,0 +1,19 @@
+{
+  "name": "tools",
+  "sourceRoot": "tools/src",
+  "projectType": "library",
+  "targets": {
+    "typecheck": {
+      "command": "node node_modules/typescript7/bin/tsc -p tools/tsconfig.lib.json --noEmit && node node_modules/typescript7/bin/tsc -p tools/tsconfig.spec.json --noEmit"
+    },
+    "lint": {
+      "command": "eslint . --max-warnings=0",
+      "options": {
+        "cwd": "tools"
+      }
+    },
+    "test": {
+      "command": "vitest run --config tools/vitest.config.ts"
+    }
+  }
+}
