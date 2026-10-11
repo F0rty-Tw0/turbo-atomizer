@@ -1,4 +1,4 @@
-import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -221,6 +221,22 @@ describe('FEATURE: sync one test package', (): void => {
     afterEach(async (): Promise<void> => {
       await copy.dispose();
     });
+
+    it(
+      'WHEN it is synced through a symlinked package path THEN every spec gets a file task',
+      async (): Promise<void> => {
+        const linkDir = join(copy.directory, 'apps/e2e-link');
+
+        await symlink(packageDir, linkDir);
+        await syncPackage(linkDir, { check: false });
+
+        const tasks = await readGeneratedTasks(join(copy.directory, ATOMS_FILE));
+        const fileTaskNames = fileTasksOf(tasks).map(([name]): string => name);
+
+        expect(fileTaskNames).toEqual(FILE_TASK_NAMES);
+      },
+      LIST_TIMEOUT_MS
+    );
 
     it(
       'WHEN its config lists a spec outside the package THEN the spec is rejected by name',
