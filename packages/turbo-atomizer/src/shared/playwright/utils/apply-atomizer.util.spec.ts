@@ -43,11 +43,13 @@ describe('FEATURE: apply atomizer', (): void => {
     });
 
     it('WHEN servers are configured THEN the input config is not mutated', (): void => {
-      const config: PlaywrightTestConfig = { webServer: [PLAYWRIGHT_WEB_SERVER_STUB] };
+      const server: PlaywrightWebServer = { command: 'pnpm start', url: 'http://localhost:3000' };
+      const config: PlaywrightTestConfig = { webServer: [server] };
+      const original = structuredClone(config);
 
       applyAtomizer(config, env, false, processEnv);
 
-      expect(config).toEqual({ webServer: [PLAYWRIGHT_WEB_SERVER_STUB] });
+      expect(config).toStrictEqual(original);
     });
 
     it('WHEN metadata is configured THEN it is unchanged', (): void => {

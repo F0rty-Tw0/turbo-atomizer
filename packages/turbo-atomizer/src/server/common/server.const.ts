@@ -24,6 +24,10 @@ export const CLIENT_SILENCE_MS = 30_000;
 
 export const SUPERVISOR_CONNECT_MS = 10_000;
 
+export const SUPERVISOR_RESPAWN_MS = 2000;
+
+export const SUPERVISOR_SPAWNS = 3;
+
 export const LEASE_ATTEMPTS = 3;
 
 export const PROBE_REQUEST_TIMEOUT_MS = 5000;
@@ -31,3 +35,15 @@ export const PROBE_REQUEST_TIMEOUT_MS = 5000;
 export const MAX_PROBE_REDIRECTS = 10;
 
 export const SERVER_LOG_FILE = 'server.log';
+
+export const RENDEZVOUS_TOKEN_FILE = 'turbo-atomizer.token';
+
+export const RENDEZVOUS_TOKEN_BYTES = 16;
+
+export const RENDEZVOUS_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+
+export const NONCE_BYTES = 16;
+
+export const NONCE_TIMEOUT_MS = 5000;
+
+export const MAX_NONCE_LINE_LENGTH = 256;

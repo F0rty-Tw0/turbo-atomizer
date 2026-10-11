@@ -22,7 +22,7 @@
         "executor": "nx:run-commands",
         "cache": true,
         "dependsOn": ["^build"],
-        "inputs": ["production", "^production"],
+        "inputs": ["production", "^production", "{workspaceRoot}/LICENSE"],
         "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
         "options": {
           "command": "node tools/src/build-package.ts {projectRoot}"

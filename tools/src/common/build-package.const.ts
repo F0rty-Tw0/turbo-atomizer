@@ -7,7 +7,7 @@ const esmBuild: EntryBuild = {
 };
 
 const cjsBuild: EntryBuild = {
-  entryNames: ['count-reporter', 'exec', 'playwright'],
+  entryNames: ['count-reporter', 'exec', 'merge-status-reporter', 'playwright'],
   extension: '.cjs',
   format: 'cjs'
 };

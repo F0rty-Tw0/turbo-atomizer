@@ -1,9 +1,9 @@
 import { readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { runCommand } from './workspace-command.spec.util.ts';
+import { outputOf, runCommand } from './workspace-command.spec.util.ts';
 import { ALL_TASK_ID, CARRIER_TASK_PREFIX, FILE_TASK_PREFIX } from '../common/fixture-workspace.const.ts';
-import type { CommandEnv, TaskHashes, TaskRun, TurboRun } from '../common/fixture-workspace.type.ts';
+import type { CommandEnv, SummaryPolicy, TaskHashes, TaskRun, TurboRun } from '../common/fixture-workspace.type.ts';
 import { turboRunSchema } from '../common/turbo-summary.schema.ts';
 
 type TaskCacheJson = {
@@ -63,14 +63,26 @@ const readSummaryTasks = async (runsDir: string): Promise<TaskRun[]> => {
   return parseTasks(text);
 };
 
-/** Runs `command` with `--summarize` appended and reads its tasks from the run summary; no summary (turbo never ran) → no tasks. */
-export const summarizedRun = async (root: string, command: string, env: CommandEnv = {}): Promise<TurboRun> => {
+/**
+ * Runs `command` with `--summarize` appended and reads its tasks from the run summary.
+ * Throws when the summary is missing or lists no task, so no assertion passes on an empty list; `optional` allows that (turbo never ran, or ran nothing).
+ */
+export const summarizedRun = async (
+  root: string,
+  command: string,
+  env: CommandEnv = {},
+  policy: SummaryPolicy = 'required'
+): Promise<TurboRun> => {
   const runsDir = join(root, RUNS_DIR);
 
   await rm(runsDir, { force: true, recursive: true });
 
   const result = await runCommand(root, `${command} --summarize`, env);
   const tasks = await readSummaryTasks(runsDir);
+  const isMissing = tasks.length === 0 && policy === 'required';
+
+  if (isMissing) throw new Error(`\`${command} --summarize\` wrote no run summary with tasks\n${outputOf(result)}`);
+
   const run: TurboRun = { result, tasks };
 
   return run;

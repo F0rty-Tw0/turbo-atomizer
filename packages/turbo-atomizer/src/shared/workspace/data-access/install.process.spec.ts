@@ -31,24 +31,37 @@ describe('FEATURE: install process', (): void => {
   });
 
   describe('GIVEN an npm on PATH that fails', (): void => {
-    it('WHEN install runs THEN it rejects with InstallFailedException carrying the exit code', async (): Promise<void> => {
-      stub = await stubCommand('npm', 3);
-      vi.stubEnv('PATH', `${stub.directory}${delimiter}${process.env['PATH'] ?? ''}`);
+    describe('WHEN install runs', (): void => {
+      it('THEN it rejects with InstallFailedException carrying the exit code', async (): Promise<void> => {
+        stub = await stubCommand('npm', 3);
+        vi.stubEnv('PATH', `${stub.directory}${delimiter}${process.env['PATH'] ?? ''}`);
 
-      const installing = runInstall(stub.directory, 'npm');
+        const installing = runInstall(stub.directory, 'npm');
 
-      await expect(installing).rejects.toMatchObject({ name: 'InstallFailedException', command: 'npm install', exitCode: 3 });
+        await expect(installing).rejects.toMatchObject({ name: 'InstallFailedException', command: 'npm install', exitCode: 3 });
+      });
+
+      it('THEN the message tells the user to run npm install in the root and commit package-lock.json, not to re-run init', async (): Promise<void> => {
+        stub = await stubCommand('npm', 3);
+        vi.stubEnv('PATH', `${stub.directory}${delimiter}${process.env['PATH'] ?? ''}`);
+
+        const installing = runInstall(stub.directory, 'npm');
+
+        await expect(installing).rejects.toThrow(`run "npm install" in ${stub.directory} and commit package-lock.json`);
+        await expect(installing).rejects.not.toThrow('re-run turbo-atomizer init');
+      });
     });
   });
 
   describe('GIVEN a PATH without the package manager', (): void => {
-    it('WHEN install runs THEN it rejects with InstallFailedException', async (): Promise<void> => {
+    it('WHEN install runs THEN it rejects with InstallFailedException naming pnpm-lock.yaml', async (): Promise<void> => {
       stub = await stubCommand('npm', 0);
       vi.stubEnv('PATH', stub.directory);
 
       const installing = runInstall(stub.directory, 'pnpm');
 
       await expect(installing).rejects.toBeInstanceOf(InstallFailedException);
+      await expect(installing).rejects.toThrow(`run "pnpm install" in ${stub.directory} and commit pnpm-lock.yaml`);
     });
   });
 });

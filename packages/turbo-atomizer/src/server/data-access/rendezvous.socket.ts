@@ -3,8 +3,11 @@ import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
 
 import { connectSocket } from './rendezvous-client.socket.ts';
-import type { ServerMessage } from '../common/server-protocol.type.ts';
+import { nonceLineSchema } from '../common/server-protocol.schema.ts';
+import type { ProofLine, ServerMessage } from '../common/server-protocol.type.ts';
+import { MAX_NONCE_LINE_LENGTH } from '../common/server.const.ts';
 import { errorCode } from '../utils/errno.util.ts';
+import { parseJsonLine } from '../utils/json-line.util.ts';
 
 /**
  * True when `socketPath` is free to bind. A socket file is unlinked only after a connect to it fails with
@@ -49,6 +52,52 @@ export const listenRendezvous = async (socketPath: string, onConnection: (socket
       resolve(server);
     });
   });
+};
+
+/**
+ * Spec §7 handshake: the client's nonce from its first line, or undefined when that line is malformed, too long, or
+ * missing after `timeoutMs`, or the client hangs up first. Later bytes are read and ignored; the unref'd deadline never
+ * keeps the process alive.
+ */
+export const readNonce = async (socket: Socket, timeoutMs: number): Promise<string | undefined> => {
+  return new Promise((resolve): void => {
+    let buffered = '';
+    let isDone = false;
+
+    const finish = (nonce: string | undefined): void => {
+      isDone = true;
+      resolve(nonce);
+    };
+
+    const onData = (chunk: Buffer): void => {
+      if (isDone) return;
+
+      buffered += chunk.toString();
+
+      const end = buffered.indexOf('\n');
+      const isTooLong = end === -1 && buffered.length > MAX_NONCE_LINE_LENGTH;
+
+      if (isTooLong) return void finish(undefined);
+
+      if (end === -1) return;
+
+      const nonceLine = parseJsonLine(buffered.slice(0, end), nonceLineSchema);
+
+      finish(nonceLine?.nonce);
+    };
+
+    const deadline = setTimeout((): void => finish(undefined), timeoutMs);
+
+    deadline.unref();
+    socket.on('data', onData);
+    socket.once('close', (): void => finish(undefined));
+  });
+};
+
+export const sendProof = (socket: Socket, proof: string): void => {
+  const proofLine: ProofLine = { proof };
+
+  socket.write(`${JSON.stringify(proofLine)}\n`);
 };
 
 export const sendMessage = (socket: Socket, message: ServerMessage): void => {

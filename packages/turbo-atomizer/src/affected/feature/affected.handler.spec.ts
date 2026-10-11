@@ -70,5 +70,25 @@ describe('FEATURE: affected handler', (): void => {
       },
       RUN_TIMEOUT_MS
     );
+
+    it(
+      'WHEN SIGINT arrives while turbo runs for the first package THEN the next package is not handled and the handler exits 130',
+      async (): Promise<void> => {
+        const listenersBefore = process.listenerCount('SIGINT');
+        const handling = affectedHandler([testPackageDir, lonePackageDir], { forwarded: [] });
+        const isTurboRunning = (): void => {
+          expect(process.listenerCount('SIGINT')).toBeGreaterThan(listenersBefore);
+        };
+
+        await vi.waitFor(isTurboRunning, { interval: 5, timeout: RUN_TIMEOUT_MS });
+        process.emit('SIGINT', 'SIGINT');
+
+        const code = await handling;
+
+        expect(code).toBe(130);
+        expect(stdoutSpy).not.toHaveBeenCalledWith('no affected file tasks in lone\n');
+      },
+      RUN_TIMEOUT_MS
+    );
   });
 });

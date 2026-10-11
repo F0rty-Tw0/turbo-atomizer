@@ -1,8 +1,9 @@
 import { parse } from 'jsonc-parser';
 
 import { ATOMIZER_TASK_TAG_PREFIX } from '../../shared/atomizer/common/atomizer.const.ts';
+import { atomsTurboJsonSchema } from '../../shared/atomizer/common/atoms-turbo-json.schema.ts';
+import { hasTaskTag } from '../../shared/atomizer/utils/file-tasks.util.ts';
 import type { AtomsDiff } from '../common/atoms-diff.type.ts';
-import { atomsTurboJsonSchema, taggedTaskSchema } from '../common/atoms-turbo-json.schema.ts';
 
 type SerializedTasks = Map<string, string>;
 
@@ -12,21 +13,13 @@ const toSerializedEntry = ([name, task]: [string, unknown]): [string, string] =>
   return [name, serializedTask];
 };
 
-const hasTag = (task: unknown, tag: string): boolean => {
-  const result = taggedTaskSchema.safeParse(task);
-
-  if (!result.success) return false;
-
-  return result.data.tags.includes(tag);
-};
-
 const readSerializedFileTasks = (text: string, fileTaskTag: string): SerializedTasks => {
   const json: unknown = parse(text);
   const result = atomsTurboJsonSchema.safeParse(json);
 
   if (!result.success) return new Map();
 
-  const isFileTask = ([, task]: [string, unknown]): boolean => hasTag(task, fileTaskTag);
+  const isFileTask = ([, task]: [string, unknown]): boolean => hasTaskTag(task, fileTaskTag);
   const fileTaskEntries = Object.entries(result.data.tasks).filter(isFileTask);
   const entries = fileTaskEntries.map(toSerializedEntry);
 

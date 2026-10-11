@@ -15,6 +15,7 @@ type StatusRequest = {
   readonly redirects: number;
 };
 
+/** Undefined when the response is the answer: not a redirect, out of hops, or a `Location` no URL parser accepts. */
 const redirectTarget = (response: IncomingMessage, current: StatusRequest): StatusRequest | undefined => {
   const status = response.statusCode ?? NO_STATUS;
   const location = response.headers.location;
@@ -23,7 +24,10 @@ const redirectTarget = (response: IncomingMessage, current: StatusRequest): Stat
 
   if (!canFollow) return undefined;
 
-  const url = new URL(location, current.url);
+  const url = URL.parse(location, current.url.href);
+
+  if (url === null) return undefined;
+
   const next: StatusRequest = { ...current, url, redirects: current.redirects + 1 };
 
   return next;

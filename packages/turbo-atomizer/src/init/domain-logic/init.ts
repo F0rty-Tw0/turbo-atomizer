@@ -1,6 +1,7 @@
 import { relative } from 'node:path';
 
 import { planInit } from './init-preflight.ts';
+import { MERGE_CONFIG_FILE } from '../../reports/common/reports.const.ts';
 import { ATOMIZER_CONFIG_FILE, ATOMIZER_OUTPUT_DIR } from '../../shared/atomizer/common/atomizer.const.ts';
 import { writeAtomizerConfigFile } from '../../shared/config/data-access/atomizer-config.store.ts';
 import { listSpecs } from '../../shared/playwright/data-access/playwright-list.process.ts';
@@ -14,6 +15,7 @@ import { runInstall } from '../../shared/workspace/data-access/install.process.t
 import { ensureRootDevDependency } from '../../shared/workspace/data-access/root-package-json.store.ts';
 import { ensureWorkspaceGlob } from '../../shared/workspace/data-access/workspace-globs.store.ts';
 import { syncPackage } from '../../sync/domain-logic/sync.ts';
+import { InitConflictException } from '../common/init-conflict.exception.ts';
 import type { InitDeps, InitOptions, InitPlan, InitReport, PeerVersions, TurboJsonPlan } from '../common/init.type.ts';
 import { writeGeneratedPackage } from '../data-access/generated-package.store.ts';
 import { initNextSteps } from '../utils/init-summary.util.ts';
@@ -25,7 +27,7 @@ type InitChange = {
 
 const CLI_PACKAGE = 'turbo-atomizer';
 
-const GITIGNORE_LINES = [`${ATOMIZER_OUTPUT_DIR}/`, 'playwright.atomizer-merge.config.mjs'];
+const GITIGNORE_LINES = [`${ATOMIZER_OUTPUT_DIR}/`, MERGE_CONFIG_FILE];
 
 const experimentalTaskCommand: JsonEdit = { path: ['futureFlags', 'experimentalTaskCommand'], value: true };
 const affectedUsingTaskInputs: JsonEdit = { path: ['futureFlags', 'affectedUsingTaskInputs'], value: true };
@@ -114,8 +116,16 @@ export const initPackage = async (options: InitOptions, deps: InitDeps): Promise
   return syncOrNextSteps(plan, base);
 };
 
+const readTurboVersion = async (root: string): Promise<string> => {
+  try {
+    return await getTurboVersion(root);
+  } catch {
+    throw new InitConflictException(root, 'cannot read turbo/package.json from the workspace root; install turbo there, then re-run init.');
+  }
+};
+
 const readPeerVersions = async (root: string, packageDir: string): Promise<PeerVersions> => {
-  const turbo = await getTurboVersion(root);
+  const turbo = await readTurboVersion(root);
   const playwright = getPlaywrightVersion(packageDir);
   const versions: PeerVersions = { playwright, turbo };
 

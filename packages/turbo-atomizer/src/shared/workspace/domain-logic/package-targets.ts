@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 
 import { loadAtomizerConfig } from '../../config/domain-logic/atomizer-config.ts';
 import { findWorkspaceRoot } from '../../turbo/data-access/workspace-root.store.ts';
+import { detectPackageManager } from '../data-access/package-manager.store.ts';
 import { listWorkspaceDirs } from '../data-access/workspace-dirs.store.ts';
 import { readWorkspaceGlobs } from '../data-access/workspace-globs.store.ts';
 
@@ -13,7 +14,8 @@ const hasAtomizerConfig = async (packageDir: string): Promise<boolean> => {
 
 /** Workspace packages (absolute dirs) that hold an atomizer config, in `turbo-atomizer.json` or `package.json`. */
 export const findConfiguredPackages = async (root: string): Promise<string[]> => {
-  const globs = await readWorkspaceGlobs(root);
+  const pm = detectPackageManager(root);
+  const globs = await readWorkspaceGlobs(root, pm);
   const dirs = await listWorkspaceDirs(root, globs);
   const configured = await Promise.all(dirs.map(hasAtomizerConfig));
 

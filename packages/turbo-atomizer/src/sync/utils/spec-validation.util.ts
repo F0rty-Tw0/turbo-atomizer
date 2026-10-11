@@ -15,7 +15,8 @@ const LIST_LINE_RULES: ListLineRule[] = [
   { pattern: /^\s|\s$|[\r\n]/, reason: 'has surrounding whitespace or a line break' }
 ];
 
-const GLOB_METACHARACTER = /[*?[\]{}!]/;
+// turbo 2.11 parses `(`, `)`, `,`, `<` and `>` as glob syntax and fails on them in a literal file path.
+const GLOB_METACHARACTER = /[*?[\]{}!(),<>]/;
 
 export const validateListLine = (line: string): string | undefined => {
   const brokenRule = LIST_LINE_RULES.find((rule) => rule.pattern.test(line));
@@ -26,11 +27,17 @@ export const validateListLine = (line: string): string | undefined => {
 };
 
 export const validateTaskPath = (taskPath: string): string | undefined => {
+  const namesPackage = taskPath.includes('#');
+
+  if (namesPackage) {
+    return `Spec path "${taskPath}" holds "#", which turbo reads as package#task in the task name; rename the spec file.`;
+  }
+
   const metacharacter = GLOB_METACHARACTER.exec(taskPath)?.[0];
 
   if (metacharacter === undefined) return undefined;
 
-  return `Spec path "${taskPath}" holds the glob metacharacter "${metacharacter}", so its turbo input would match other files; rename the spec file.`;
+  return `Spec path "${taskPath}" holds the glob metacharacter "${metacharacter}", so its turbo input would not match only that file; rename the spec file.`;
 };
 
 /** `taskPath` is the posix path relative to the test package (spec §6.2 step 4). */

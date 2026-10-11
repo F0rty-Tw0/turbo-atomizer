@@ -1,0 +1,7 @@
+{
+  "extends": ["//"],
+  "tags": ["atomizer:definitions"],
+  "tasks": {
+    "e2e-ci--all": {}
+  }
+}
