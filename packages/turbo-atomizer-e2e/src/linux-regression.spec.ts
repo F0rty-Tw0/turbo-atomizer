@@ -46,14 +46,16 @@ describe('FEATURE: linux regression', (): void => {
       return workspace.dispose;
     });
 
-    it('WHEN init and sync run from the workspace root THEN both exit 0', async (): Promise<void> => {
+    it('WHEN init and sync run from the workspace root THEN both exit 0 and .gitignore ignores .atomizer/', async (): Promise<void> => {
       const init = await workspace.run(`turbo-atomizer init --package ${TEST_PACKAGE_DIR}`);
       const sync = await workspace.run('turbo-atomizer sync');
+      const gitignore = await workspace.read('.gitignore');
 
       await workspace.commit('init');
 
       expect(init, outputOf(init)).toMatchObject({ exitCode: 0 });
       expect(sync, outputOf(sync)).toMatchObject({ exitCode: 0 });
+      expect(gitignore.split('\n')).toContain('.atomizer/');
     });
 
     it('WHEN e2e-ci runs the first time THEN 2N+1 tasks run, every file task passes and the server starts once', async (): Promise<void> => {
