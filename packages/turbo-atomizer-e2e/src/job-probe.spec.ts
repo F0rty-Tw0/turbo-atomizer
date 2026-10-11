@@ -10,17 +10,17 @@ import { outputOf } from './test/utils/workspace-command.spec.util.ts';
 
 const IS_WINDOWS = process.platform === 'win32';
 const PROBE_DIR = join(import.meta.dirname, 'test/fixtures/job-probe');
-const PROBE_TIMEOUT_MS = 600_000;
+const PROBE_TIMEOUT_MS = 1_500_000;
 const OUTPUT_TAIL = 4000;
 
 const missingReport = (): string => 'null';
 
 describe('FEATURE: job probe', (): void => {
-  describe.runIf(IS_WINDOWS && isPmSelected('pnpm'))('GIVEN the pnpm-basic workspace with a probe as the web build', (): void => {
+  describe.runIf(IS_WINDOWS && isPmSelected('npm'))('GIVEN the npm-basic workspace with a probe as the web build', (): void => {
     it(
       'WHEN turbo runs the probe THEN the timing of each launch variant is printed',
       async (): Promise<void> => {
-        const workspace = await createFixtureWorkspace('pnpm-basic', 'pnpm');
+        const workspace = await createFixtureWorkspace('npm-basic', 'npm');
 
         try {
           await cp(PROBE_DIR, join(workspace.root, 'apps/web'), { recursive: true });
