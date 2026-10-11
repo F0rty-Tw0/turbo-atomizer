@@ -13,6 +13,8 @@ import { selectPackageTasks, toTurboRunArgs } from '../utils/affected-tasks.util
 const runTurboTasks = async (root: string, args: string[]): Promise<number> => {
   const exit = await runTurbo(root, args);
 
+  if (exit.interrupt !== null) return toExitCode(null, exit.interrupt, constants.signals);
+
   return toExitCode(exit.code, exit.signal, constants.signals);
 };
 

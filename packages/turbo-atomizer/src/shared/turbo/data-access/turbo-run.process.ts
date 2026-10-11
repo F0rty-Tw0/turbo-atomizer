@@ -12,8 +12,10 @@ export const runTurbo = async (root: string, args: string[]): Promise<TurboExit>
 
   return new Promise((resolve, reject): void => {
     const child = spawn(process.execPath, argv, { cwd: root, stdio: 'inherit' });
+    let interrupt: NodeJS.Signals | null = null;
 
     const forward = (signal: NodeJS.Signals): void => {
+      interrupt = signal;
       child.kill(signal);
     };
 
@@ -22,7 +24,7 @@ export const runTurbo = async (root: string, args: string[]): Promise<TurboExit>
     };
 
     const settle = (code: number | null, signal: NodeJS.Signals | null): void => {
-      const exit: TurboExit = { code, signal };
+      const exit: TurboExit = { code, interrupt, signal };
 
       stopForwarding();
       resolve(exit);
