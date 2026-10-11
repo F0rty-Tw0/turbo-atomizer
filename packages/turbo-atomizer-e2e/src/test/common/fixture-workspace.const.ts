@@ -1,5 +1,7 @@
 import type { CommandEnv, PackageManager } from './fixture-workspace.type.ts';
 
+export const ATOMIZER_PACKAGE = 'turbo-atomizer';
+
 export const TEST_PACKAGE_DIR = 'apps/web-e2e';
 
 export const ATOMS_TURBO_JSON = 'tools/web-e2e-atoms/turbo.json';
@@ -33,6 +35,9 @@ export const INSTALL_COMMANDS: Record<PackageManager, string> = {
 export const TURBO_ATOMIZER_ARGS_ENV = 'TURBO_ATOMIZER_ARGS';
 
 export const TURBO_SCM_BASE_ENV = 'TURBO_SCM_BASE';
+
+/** Fails the pnpm-basic profile spec when `1`; the fixture passes it through unhashed (`globalPassThroughEnv`). */
+export const FAIL_TOGGLE_ENV = 'ATOMIZER_E2E_FAIL';
 
 const GIT_IDENTITY = 'turbo-atomizer-e2e';
 
