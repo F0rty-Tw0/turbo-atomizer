@@ -34,6 +34,9 @@ export const TURBO_ATOMIZER_ARGS_ENV = 'TURBO_ATOMIZER_ARGS';
 
 export const TURBO_SCM_BASE_ENV = 'TURBO_SCM_BASE';
 
+/** Fails the pnpm-basic profile spec when `1`; the fixture passes it through unhashed (`globalPassThroughEnv`). */
+export const FAIL_TOGGLE_ENV = 'ATOMIZER_E2E_FAIL';
+
 const GIT_IDENTITY = 'turbo-atomizer-e2e';
 
 const GIT_EMAIL = 'e2e@turbo-atomizer.invalid';
