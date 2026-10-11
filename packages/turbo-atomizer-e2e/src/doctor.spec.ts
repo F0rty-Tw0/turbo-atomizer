@@ -1,3 +1,5 @@
+import { normalize } from 'node:path';
+
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { TEST_PACKAGE_DIR } from './test/common/fixture-workspace.const.ts';
@@ -18,6 +20,8 @@ const TEST_PACKAGE_JSON = `${TEST_PACKAGE_DIR}/package.json`;
 const APP_DEPENDENCY = '"web": "workspace:*"';
 const PLAYWRIGHT_CONFIG = `${TEST_PACKAGE_DIR}/playwright.config.ts`;
 const GENERATED_DIR = 'tools/web-e2e-atoms';
+// doctor heads its report with the package's absolute dir, so on Windows it ends in apps\web-e2e
+const PACKAGE_HEADING = `${normalize(TEST_PACKAGE_DIR)}: `;
 
 /** Adds `shared/x.ts` at the workspace root and imports it from the home spec. */
 const importSharedFile = async (workspace: FixtureWorkspace): Promise<void> => {
@@ -47,7 +51,7 @@ describe('FEATURE: doctor on a packed consumer', (): void => {
         const doctor = await workspace.run('turbo-atomizer doctor');
 
         expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 0 });
-        expect(doctor.stdout).toContain(`${TEST_PACKAGE_DIR}: 0 errors, 1 warning\n  warning setup-projects: `);
+        expect(doctor.stdout).toContain(`${PACKAGE_HEADING}0 errors, 1 warning\n  warning setup-projects: `);
       });
 
       it('WHEN a spec is added without sync THEN doctor exits 1 with a stale-generated error', async (): Promise<void> => {
