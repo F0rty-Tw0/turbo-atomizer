@@ -313,7 +313,7 @@ Protocol: newline-delimited JSON from supervisor to client: `{"state":"starting"
 
 **Start.**
 
-1. exec connects. On no listener, it spawns the supervisor detached (`process.execPath <supervisor entry> <package dir> <playwright config file>`; the supervisor loads the atomizer config itself for `server.idleMs`; `detached: true`, stdio to `.atomizer/server.log`, which exec opens for append after creating `.atomizer/` if missing, `windowsHide: true`, `unref()`), then retries the connection with backoff for up to 10 s.
+1. exec connects. On no listener, it spawns the supervisor detached (`process.execPath <supervisor entry> <package dir> <playwright config file>`; the supervisor loads the atomizer config itself for `server.idleMs`; `detached: true`, stdio to `.atomizer/server.log`, which exec opens for append after creating `.atomizer/` if missing, `windowsHide: true`, `unref()`), then retries the connection with backoff for up to 10 s. While nothing listens it spawns the supervisor again every 2 s, at most 3 spawns in all: a new supervisor exits when it loses the lock to an old one that has closed its socket but not yet released the lock.
 2. A spawned supervisor takes the lock (POSIX) before unlinking any stale socket and binding; losing the lock or the bind means another supervisor won, and it exits.
 3. exec waits for `ready` or `failed` without its own timeout while `starting` messages arrive; 30 s of silence counts as failure.
 

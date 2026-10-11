@@ -24,6 +24,10 @@ export const CLIENT_SILENCE_MS = 30_000;
 
 export const SUPERVISOR_CONNECT_MS = 10_000;
 
+export const SUPERVISOR_RESPAWN_MS = 2000;
+
+export const SUPERVISOR_SPAWNS = 3;
+
 export const LEASE_ATTEMPTS = 3;
 
 export const PROBE_REQUEST_TIMEOUT_MS = 5000;

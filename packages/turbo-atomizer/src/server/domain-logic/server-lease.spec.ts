@@ -15,6 +15,7 @@ import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import { LEASE_ATTEMPTS, PROBE_BACKOFF_MS } from '../common/server.const.ts';
+import { acquireLock, releaseLock } from '../data-access/rendezvous.lock.ts';
 import type { StaticServer } from '../test/common/server.type.ts';
 import { createStaleSocket } from '../test/utils/stale-socket.spec.util.ts';
 import { exitedPid, freePort, isAlive, startStaticServer, waitUntil } from '../test/utils/static-server.spec.util.ts';
@@ -27,6 +28,7 @@ const IDLE_MS = 500;
 const STOP_GRACE_MS = 6000;
 const CASE_TIMEOUT_MS = 30_000;
 const CONCURRENT_EXECS = 10;
+const LATE_RELEASE_MS = 500;
 
 const MIN_LEASE_BACKOFF_MS = PROBE_BACKOFF_MS.slice(0, LEASE_ATTEMPTS - 1).reduce((sum: number, delay: number): number => sum + delay, 0);
 
@@ -148,6 +150,27 @@ describe('FEATURE: server lease', (): void => {
 
       await writeFile(lockPath, JSON.stringify({ pid: deadPid, startTime: 'gone' }));
 
+      const held = await lease(copy.directory);
+
+      held.release();
+      expect(held.env).toEqual({});
+    }, CASE_TIMEOUT_MS);
+  });
+
+  describe('GIVEN a live lock with no socket, as an exiting supervisor leaves until it releases the lock', (): void => {
+    let release: NodeJS.Timeout;
+
+    beforeEach(async (): Promise<void> => {
+      await acquireLock(lockPath);
+      release = setTimeout((): void => void releaseLock(lockPath), LATE_RELEASE_MS);
+    });
+
+    afterEach(async (): Promise<void> => {
+      clearTimeout(release);
+      await releaseLock(lockPath);
+    });
+
+    it('WHEN an exec leases the server THEN it spawns the supervisor again and the lease is ready', async (): Promise<void> => {
       const held = await lease(copy.directory);
 
       held.release();

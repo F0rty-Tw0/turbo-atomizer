@@ -6,7 +6,13 @@ import { ownRendezvousPath, preparePrivateDir, refuseForeignListener } from './r
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
-import { CLIENT_SILENCE_MS, LEASE_ATTEMPTS, SUPERVISOR_CONNECT_MS } from '../common/server.const.ts';
+import {
+  CLIENT_SILENCE_MS,
+  LEASE_ATTEMPTS,
+  SUPERVISOR_CONNECT_MS,
+  SUPERVISOR_RESPAWN_MS,
+  SUPERVISOR_SPAWNS
+} from '../common/server.const.ts';
 import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
 import { spawnSupervisor } from '../data-access/supervisor.process.ts';
 import { nextProbeDelay } from '../utils/probe-schedule.util.ts';
@@ -19,8 +25,25 @@ const tryConnect = async (socketPath: string): Promise<Socket | undefined> => {
   return connectSocket(socketPath).catch((): undefined => undefined);
 };
 
-const connectWithBackoff = async (socketPath: string): Promise<Socket> => {
-  const deadline = Date.now() + SUPERVISOR_CONNECT_MS;
+/** Spawns the supervisor again once `spawns * SUPERVISOR_RESPAWN_MS` has passed with no listener, up to `SUPERVISOR_SPAWNS` in all. */
+const respawnWhenDue = async (spawn: () => Promise<void>, spawns: number, elapsedMs: number): Promise<number> => {
+  const isDue = spawns < SUPERVISOR_SPAWNS && elapsedMs >= spawns * SUPERVISOR_RESPAWN_MS;
+
+  if (!isDue) return spawns;
+
+  await spawn();
+
+  return spawns + 1;
+};
+
+/**
+ * A spawned supervisor exits when it loses the lock to an old one that has closed its socket but not yet released the
+ * lock, leaving no listener; so while none answers, the supervisor is spawned again.
+ */
+const connectWithBackoff = async (socketPath: string, spawn: () => Promise<void>): Promise<Socket> => {
+  const startedAt = Date.now();
+  const deadline = startedAt + SUPERVISOR_CONNECT_MS;
+  let spawns = 1;
 
   for (let attempt = 0; Date.now() < deadline; attempt += 1) {
     await sleep(nextProbeDelay(attempt));
@@ -28,6 +51,8 @@ const connectWithBackoff = async (socketPath: string): Promise<Socket> => {
     const socket = await tryConnect(socketPath);
 
     if (socket !== undefined) return socket;
+
+    spawns = await respawnWhenDue(spawn, spawns, Date.now() - startedAt);
   }
 
   throw new ServerFailedException(`no supervisor listened on ${socketPath} within 10 s; see .atomizer/server.log`, '');
@@ -39,9 +64,11 @@ const connectSupervisor = async (socketPath: string, packageDir: string, configF
 
   if (existing !== undefined) return existing;
 
-  await spawnSupervisor(supervisorPath, packageDir, configFile);
+  const spawn = async (): Promise<void> => spawnSupervisor(supervisorPath, packageDir, configFile);
 
-  return connectWithBackoff(socketPath);
+  await spawn();
+
+  return connectWithBackoff(socketPath, spawn);
 };
 
 const leaseOf = (socket: Socket, env: Record<string, string>): ServerLease => {
