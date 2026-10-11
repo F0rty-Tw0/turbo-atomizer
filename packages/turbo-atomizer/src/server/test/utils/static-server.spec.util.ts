@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import type { Server } from 'node:net';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -36,18 +37,35 @@ export const startStaticServer = async (args: string[]): Promise<StaticServer> =
   return server;
 };
 
-/** A port the OS just handed out and released; nothing listens on it. */
-export const freePort = async (): Promise<number> => {
+const listenOnFreePort = async (): Promise<Server> => {
   const server = createServer();
 
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
 
+  return server;
+};
+
+const releasePort = async (server: Server): Promise<number> => {
   const address = server.address();
   const port = typeof address === 'object' && address !== null ? address.port : 0;
 
   server.close();
   await once(server, 'close');
+
+  return port;
+};
+
+/** `count` distinct ports the OS just handed out and released; all are held until each is allocated, so none repeats. */
+export const freePorts = async (count: number): Promise<number[]> => {
+  const servers = await Promise.all(Array.from({ length: count }, listenOnFreePort));
+
+  return Promise.all(servers.map(releasePort));
+};
+
+/** A port the OS just handed out and released; nothing listens on it. */
+export const freePort = async (): Promise<number> => {
+  const [port = 0] = await freePorts(1);
 
   return port;
 };

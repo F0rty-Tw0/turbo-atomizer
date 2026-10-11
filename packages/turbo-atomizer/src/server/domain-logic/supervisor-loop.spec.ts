@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, readFile } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
@@ -57,7 +59,8 @@ describe('FEATURE: supervisor loop', (): void => {
   beforeEach(async (): Promise<void> => {
     copy = await copyFixture('server-config');
     await mkdir(join(copy.directory, '.atomizer'));
-    socketPath = join(copy.directory, 'loop.sock');
+    // Unix socket paths cap at 104-108 bytes, so the socket lives in tmpdir, not the (possibly deep) fixture copy.
+    socketPath = join(tmpdir(), `ta-loop-${randomUUID().slice(0, 8)}.sock`);
 
     const port = await freePort();
 
@@ -74,54 +77,72 @@ describe('FEATURE: supervisor loop', (): void => {
     let options: SupervisorLoopOptions;
 
     beforeEach((): void => {
-      options = { packageDir: copy.directory, configFile: 'playwright.config.ts', idleMs: IDLE_MS, log: new PassThrough(), startupFailure: undefined };
-    });
-
-    it('WHEN a client connects THEN it hears starting, then ready', async (): Promise<void> => {
-      const loop = await listen(options);
-      const client = await connectSocket(socketPath);
-
-      const messages = await messagesUntilAnswer(client);
-
-      client.destroy();
-      await loop.done;
-      expect(messages.at(0)).toEqual({ state: 'starting' });
-      expect(messages.at(-1)).toEqual({ state: 'ready', env: {} });
-    }, LOOP_TIMEOUT_MS);
-
-    it('WHEN the last client leaves THEN the loop stops the server after idleMs and finishes', async (): Promise<void> => {
-      const loop = await listen(options);
-      const client = await connectSocket(socketPath);
-
-      await messagesUntilAnswer(client);
-
-      const pid = await serverPid(copy.directory);
-
-      client.destroy();
-      await loop.done;
-
-      const isGone = await waitUntil((): boolean => !isAlive(pid), IDLE_MS);
-
-      expect(isGone).toBe(true);
-    }, LOOP_TIMEOUT_MS);
-  });
-
-  describe('GIVEN a startup failure', (): void => {
-    it('WHEN a client connects THEN it hears failed with that message and the loop finishes', async (): Promise<void> => {
-      const options: SupervisorLoopOptions = {
+      options = {
         packageDir: copy.directory,
         configFile: 'playwright.config.ts',
         idleMs: IDLE_MS,
         log: new PassThrough(),
-        startupFailure: 'invalid turbo-atomizer.json'
+        startupFailure: undefined
       };
-      const loop = await listen(options);
-      const client = await connectSocket(socketPath);
+    });
 
-      const messages = await messagesUntilAnswer(client);
+    it(
+      'WHEN a client connects THEN it hears starting, then ready',
+      async (): Promise<void> => {
+        const loop = await listen(options);
+        const client = await connectSocket(socketPath);
 
-      await loop.done;
-      expect(messages.at(-1)).toEqual({ state: 'failed', message: 'invalid turbo-atomizer.json', logTail: '' });
-    }, LOOP_TIMEOUT_MS);
+        const messages = await messagesUntilAnswer(client);
+
+        client.destroy();
+        await loop.done;
+        expect(messages.at(0)).toEqual({ state: 'starting' });
+        expect(messages.at(-1)).toEqual({ state: 'ready', env: {} });
+      },
+      LOOP_TIMEOUT_MS
+    );
+
+    it(
+      'WHEN the last client leaves THEN the loop stops the server after idleMs and finishes',
+      async (): Promise<void> => {
+        const loop = await listen(options);
+        const client = await connectSocket(socketPath);
+
+        await messagesUntilAnswer(client);
+
+        const pid = await serverPid(copy.directory);
+
+        client.destroy();
+        await loop.done;
+
+        const isGone = await waitUntil((): boolean => !isAlive(pid), IDLE_MS);
+
+        expect(isGone).toBe(true);
+      },
+      LOOP_TIMEOUT_MS
+    );
+  });
+
+  describe('GIVEN a startup failure', (): void => {
+    it(
+      'WHEN a client connects THEN it hears failed with that message and the loop finishes',
+      async (): Promise<void> => {
+        const options: SupervisorLoopOptions = {
+          packageDir: copy.directory,
+          configFile: 'playwright.config.ts',
+          idleMs: IDLE_MS,
+          log: new PassThrough(),
+          startupFailure: 'invalid turbo-atomizer.json'
+        };
+        const loop = await listen(options);
+        const client = await connectSocket(socketPath);
+
+        const messages = await messagesUntilAnswer(client);
+
+        await loop.done;
+        expect(messages.at(-1)).toEqual({ state: 'failed', message: 'invalid turbo-atomizer.json', logTail: '' });
+      },
+      LOOP_TIMEOUT_MS
+    );
   });
 });
