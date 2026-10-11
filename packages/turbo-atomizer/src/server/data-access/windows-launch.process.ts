@@ -11,7 +11,7 @@ import {
 } from '../common/windows-launch.const.ts';
 import { win32CreateResultSchema } from '../common/windows-launch.schema.ts';
 import { lastLines } from '../utils/log-tail.util.ts';
-import { createdPid } from '../utils/windows-launch.util.ts';
+import { createdPid, toAsciiJson } from '../utils/windows-launch.util.ts';
 
 type PowerShellRun = {
   readonly exit: string;
@@ -76,7 +76,7 @@ const parseResult = (run: PowerShellRun): number => {
  * and returns its pid. The env goes over stdin, never into a command line other processes can read. Windows only.
  */
 export const launchOutsideJob = async (launch: WindowsLaunch): Promise<number> => {
-  const stdin = JSON.stringify(launch);
+  const stdin = toAsciiJson(launch);
   const run = await runPowerShell(stdin).catch(unavailable);
 
   return parseResult(run);

@@ -11,6 +11,22 @@ const BACKSLASHES_BEFORE_QUOTE = /(\\*)"/g;
 
 const TRAILING_BACKSLASHES = /(\\+)$/;
 
+// each UTF-16 code unit outside printable ASCII, surrogate halves one by one
+const NON_ASCII = /[\u007f-\uffff]/g;
+
+const toUnicodeEscape = (char: string): string => {
+  const hex = char.charCodeAt(0).toString(16);
+
+  return `\\u${hex.padStart(4, '0')}`;
+};
+
+/** `value` as JSON with every non-ASCII char `\u`-escaped, so powershell reads it intact whatever its input code page. */
+export const toAsciiJson = (value: unknown): string => {
+  const json = JSON.stringify(value);
+
+  return json.replace(NON_ASCII, toUnicodeEscape);
+};
+
 /** `arg` as one CommandLineToArgvW argument: quoted, each quote escaped, and backslashes doubled only before a quote. */
 export const quoteWindowsArg = (arg: string): string => {
   const quotesEscaped = arg.replace(BACKSLASHES_BEFORE_QUOTE, '$1$1\\"');

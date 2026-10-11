@@ -4,13 +4,12 @@ export const POWERSHELL_EXE = 'powershell.exe';
 export const WINDOWS_LAUNCH_TIMEOUT_MS = 30_000;
 
 /**
- * Reads `{ commandLine, cwd, env }` as UTF-8 JSON from stdin, so the env never shows in a command line, and prints
+ * Reads `{ commandLine, cwd, env }` as ASCII JSON from stdin, so the env never shows in a command line, and prints
  * `{ returnValue, processId }`. `EnvironmentVariables` replaces the new process's env rather than adding to it.
  */
 const LAUNCH_STATEMENTS = [
   "$ErrorActionPreference = 'Stop'",
-  '$reader = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), [System.Text.Encoding]::UTF8)',
-  '$request = $reader.ReadToEnd() | ConvertFrom-Json',
+  '$request = [Console]::In.ReadToEnd() | ConvertFrom-Json',
   '$startupProperties = @{ EnvironmentVariables = [string[]]$request.env; ShowWindow = [uint16]0 }',
   '$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property $startupProperties',
   '$arguments = @{ CommandLine = $request.commandLine; CurrentDirectory = $request.cwd; ProcessStartupInformation = $startup }',

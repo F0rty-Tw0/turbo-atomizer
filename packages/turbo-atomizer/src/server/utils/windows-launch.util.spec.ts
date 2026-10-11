@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createdPid, quoteWindowsArg, toEnvironmentStrings, toSupervisorLaunch } from './windows-launch.util.ts';
+import { createdPid, quoteWindowsArg, toAsciiJson, toEnvironmentStrings, toSupervisorLaunch } from './windows-launch.util.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { SupervisorStart } from '../common/server.type.ts';
 
@@ -63,6 +63,17 @@ describe('FEATURE: Windows supervisor launch', (): void => {
 
       expect(launch.env).toEqual([`TURBO_TOKEN=${SECRET}`]);
       expect(launch.commandLine).not.toContain(SECRET);
+    });
+  });
+
+  describe('GIVEN a launch whose env holds non-ASCII text', (): void => {
+    it('WHEN it is serialized for powershell stdin THEN the JSON is pure ASCII and parses back to the same value', (): void => {
+      const launch = { commandLine: '"node"', cwd: 'C:\\Users\\Zoë', env: ['GREETING=héllo 世界 🎉'] };
+
+      const json = toAsciiJson(launch);
+
+      expect(json).toMatch(/^[\x20-\x7e]*$/);
+      expect(JSON.parse(json)).toEqual(launch);
     });
   });
 
