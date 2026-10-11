@@ -1,0 +1,3 @@
+# Apps and their e2e suites.
+packages:
+  - 'apps/*' # every app

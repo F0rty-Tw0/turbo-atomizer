@@ -15,6 +15,12 @@ describe('FEATURE: atomizer config loading', (): void => {
         expect(loaded.source).toBe('file');
       });
 
+      it('THEN generatedPackage is marked as set by the config', async (): Promise<void> => {
+        const loaded = await loadAtomizerConfig(configFixtureDir('file-config'));
+
+        expect(loaded.hasGeneratedPackage).toBe(true);
+      });
+
       it('THEN the file fields are merged over the defaults', async (): Promise<void> => {
         const server = { idleMs: 5000 };
         const uncached = { patterns: ['**/*.live.spec.ts'] };
@@ -52,6 +58,12 @@ describe('FEATURE: atomizer config loading', (): void => {
         const loaded = await loadAtomizerConfig(configFixtureDir('package-json-config'));
 
         expect(loaded.config).toMatchObject({ playwrightConfig: 'e2e.config.ts', task: 'smoke' });
+      });
+
+      it('THEN generatedPackage is not marked as set, since the key leaves it out', async (): Promise<void> => {
+        const loaded = await loadAtomizerConfig(configFixtureDir('package-json-config'));
+
+        expect(loaded.hasGeneratedPackage).toBe(false);
       });
     });
   });

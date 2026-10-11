@@ -4,11 +4,7 @@ import { join } from 'node:path';
 
 import { z } from 'zod';
 
-import {
-  ATOMIZER_CONFIG_FILE,
-  ATOMIZER_PACKAGE_JSON_KEY,
-  PLAYWRIGHT_CONFIG_FILES
-} from '../../atomizer/common/atomizer.const.ts';
+import { ATOMIZER_CONFIG_FILE, ATOMIZER_PACKAGE_JSON_KEY, PLAYWRIGHT_CONFIG_FILES } from '../../atomizer/common/atomizer.const.ts';
 import type { AtomizerConfig } from '../common/atomizer-config.type.ts';
 import { ConfigInvalidException } from '../common/config-invalid.exception.ts';
 
@@ -56,10 +52,7 @@ export const findPlaywrightConfig = (packageDir: string): string | undefined => 
   return PLAYWRIGHT_CONFIG_FILES.find((name) => existsSync(join(packageDir, name)));
 };
 
-export const writeAtomizerConfigFile = async (
-  packageDir: string,
-  partial: Partial<AtomizerConfig>
-): Promise<boolean> => {
+export const writeAtomizerConfigFile = async (packageDir: string, partial: Partial<AtomizerConfig>): Promise<boolean> => {
   const fileConfig = await readAtomizerConfigFile(packageDir);
   const packageConfig = await readPackageJsonConfig(packageDir);
   const hasConfig = fileConfig !== undefined || packageConfig !== undefined;

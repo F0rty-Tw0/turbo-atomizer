@@ -24,12 +24,13 @@ export type AtomizerConfig = {
 
 type PackageDerivedField = 'generatedPackage' | 'playwrightConfig';
 
-export type ParsedAtomizerConfig = Omit<AtomizerConfig, PackageDerivedField> &
-  Partial<Pick<AtomizerConfig, PackageDerivedField>>;
+export type ParsedAtomizerConfig = Omit<AtomizerConfig, PackageDerivedField> & Partial<Pick<AtomizerConfig, PackageDerivedField>>;
 
 export type AtomizerConfigSource = 'default' | 'file' | 'package-json';
 
 export type LoadedAtomizerConfig = {
   readonly config: AtomizerConfig;
+  /** Whether the config sets `generatedPackage`; when it does not, `config` holds the derived default. */
+  readonly hasGeneratedPackage: boolean;
   readonly source: AtomizerConfigSource;
 };

@@ -48,6 +48,7 @@ describe('FEATURE: build package', (): void => {
     beforeAll(async (): Promise<void> => {
       outDir = await mkdtemp(join(tmpdir(), 'build-package-'));
       await buildPackage('packages/turbo-atomizer', outDir);
+      await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');
     });
 
     afterAll(async (): Promise<void> => {
@@ -57,9 +58,7 @@ describe('FEATURE: build package', (): void => {
     describe('WHEN the published manifest is read', (): void => {
       let manifest: PackageManifest;
 
-      beforeAll(async (): Promise<void> => {
-        await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');
-
+      beforeAll((): void => {
         manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
       });
 
@@ -125,6 +124,25 @@ describe('FEATURE: build package', (): void => {
 
         expect(targets).not.toEqual([]);
         expect(stderr).toBe('');
+      });
+    });
+
+    describe('WHEN cli.js runs with its runtime dependencies installed next to it', (): void => {
+      it('THEN --version prints the manifest version', async (): Promise<void> => {
+        const manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--version']);
+
+        expect(stdout).toBe(`${manifest.version}\n`);
+      });
+
+      it('THEN --help prints the usage', async (): Promise<void> => {
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--help']);
+
+        expect(stdout).toContain('merge-reports');
       });
     });
 

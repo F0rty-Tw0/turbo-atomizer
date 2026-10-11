@@ -1,1 +1,4 @@
-{ "name": "file-config", "private": true }
+{
+  "name": "file-config",
+  "private": true
+}

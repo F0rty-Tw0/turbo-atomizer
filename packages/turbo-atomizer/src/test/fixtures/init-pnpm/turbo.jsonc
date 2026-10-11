@@ -1,0 +1,7 @@
+{
+  // Shared task defaults for the acme workspace.
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": { "outputs": ["dist/**"] }
+  }
+}
