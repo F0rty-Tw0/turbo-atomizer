@@ -81,9 +81,12 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node tools/src/release.ts prepare "$RELEASE_VERSION"
 
-      # Before the push, so a build failure leaves the version unused
+      # Build and checks run before the push, so a failure leaves the version unused
       - name: Build package
         run: pnpm exec nx run turbo-atomizer:build
+
+      - name: Typecheck, lint and test
+        run: pnpm exec nx run-many -t typecheck lint test
 
       - name: Push versioned source and tag
         if: inputs.version != 'publish-current'
