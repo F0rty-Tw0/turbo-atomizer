@@ -99,6 +99,13 @@ describe('FEATURE: build package', (): void => {
       expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
     });
 
+    it('WHEN README.md is read THEN it is the package README, not the workspace one', async (): Promise<void> => {
+      const published = await readFile(join(outDir, 'README.md'), 'utf8');
+      const packageReadme = await readFile(join(packageRoot, 'README.md'), 'utf8');
+
+      expect(published).toBe(packageReadme);
+    });
+
     describe('WHEN cli.js runs with its runtime dependencies installed next to it', (): void => {
       beforeAll(async (): Promise<void> => {
         await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');

@@ -4,7 +4,14 @@ import { join } from 'node:path';
 import { parseDocument } from 'yaml';
 import type { Document } from 'yaml';
 
-import { DEPENDENCY_FIELDS, PACKAGE_ASSETS, PACKAGE_BIN, PACKAGE_EXPORTS, PUBLISHED_FILES } from './common/build-package.const.ts';
+import {
+  DEPENDENCY_FIELDS,
+  PACKAGE_ASSETS,
+  PACKAGE_BIN,
+  PACKAGE_EXPORTS,
+  PUBLISHED_FILES,
+  WORKSPACE_ASSETS
+} from './common/build-package.const.ts';
 import type { BuildPackageContext, PackageDependencyMap, PackageManifest } from './common/build-package.type.ts';
 
 const materializedDependencies = (dependencies: PackageDependencyMap, workspace: Document): PackageDependencyMap => {
@@ -65,7 +72,11 @@ export const writePublishedManifest = async (context: BuildPackageContext): Prom
 
   await writeFile(join(context.outputRoot, 'package.json'), text);
 
-  for (const asset of PACKAGE_ASSETS) {
+  for (const asset of WORKSPACE_ASSETS) {
     await cp(join(context.workspaceRoot, asset), join(context.outputRoot, asset));
+  }
+
+  for (const asset of PACKAGE_ASSETS) {
+    await cp(join(context.packageRoot, asset), join(context.outputRoot, asset));
   }
 };

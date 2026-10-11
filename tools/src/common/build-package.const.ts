@@ -48,7 +48,9 @@ export const PACKAGE_BIN: PackageBinMap = {
 
 export const PUBLISHED_FILES = ['**/*.js', '**/*.cjs', '**/*.d.ts', 'schema.json'];
 
-export const PACKAGE_ASSETS = ['LICENSE', 'README.md'];
+export const WORKSPACE_ASSETS = ['LICENSE'];
+
+export const PACKAGE_ASSETS = ['README.md'];
 
 export const CONFIG_SCHEMA_MODULE = 'src/shared/config/common/atomizer-config.schema.ts';
 
