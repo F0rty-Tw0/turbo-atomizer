@@ -26,6 +26,8 @@ const packageRoot = resolve(import.meta.dirname, '../../packages/turbo-atomizer'
 // exec.cjs runs exec as soon as it loads; exiting synchronously after the loop proves every require() returned without letting that run start.
 const REQUIRE_SCRIPT = 'for (const target of process.argv.slice(1)) require(target); process.exit(0);';
 
+const REPOSITORY_URL = 'git+https://github.com/F0rty-Tw0/turbo-atomizer.git';
+
 const IMPORT_SCRIPT = 'for (const target of process.argv.slice(1)) await import(target);';
 
 const ENTRY_FILES = [
@@ -85,6 +87,10 @@ describe('FEATURE: build package', (): void => {
 
       it('THEN engines.node is >=24', (): void => {
         expect(manifest).toHaveProperty(['engines', 'node'], '>=24');
+      });
+
+      it('THEN repository.url is the GitHub repo npm provenance checks against', (): void => {
+        expect(manifest).toHaveProperty(['repository', 'url'], REPOSITORY_URL);
       });
 
       it('THEN no catalog specifier is left', (): void => {
@@ -164,6 +170,13 @@ describe('FEATURE: build package', (): void => {
       const cli = await readFile(join(outDir, 'cli.js'), 'utf8');
 
       expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    });
+
+    it('WHEN README.md is read THEN it is the package README, not the workspace one', async (): Promise<void> => {
+      const published = await readFile(join(outDir, 'README.md'), 'utf8');
+      const packageReadme = await readFile(join(packageRoot, 'README.md'), 'utf8');
+
+      expect(published).toBe(packageReadme);
     });
   });
 });
