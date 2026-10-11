@@ -1,3 +1,4 @@
+import { realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import type { AtomizerConfig } from '../../shared/config/common/atomizer-config.type.ts';
@@ -68,7 +69,8 @@ const renderPackage = async (packageDir: string, config: AtomizerConfig, configI
 
 /** Regenerates the generated package's turbo.json for one test package (spec §6.2); `check` never writes. */
 export const syncPackage = async (packageDir: string, options: SyncOptions): Promise<SyncResult> => {
-  const absPackageDir = resolve(packageDir);
+  // Playwright reports physical spec paths, so a symlinked package dir must be compared by its real path.
+  const absPackageDir = await realpath(resolve(packageDir));
   const { config, source } = await loadAtomizerConfig(absPackageDir);
   const workspaceRoot = await findWorkspaceRoot(absPackageDir);
   const after = await renderPackage(absPackageDir, config, source === 'file');
