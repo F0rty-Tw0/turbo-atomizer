@@ -1,16 +1,38 @@
+import { spawn } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { startWebServers, stopWebServers } from './web-servers.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
-import type { StartOutcome } from '../common/server.type.ts';
+import type { RunningServer, StartOutcome } from '../common/server.type.ts';
+import { stopServer } from '../data-access/server.process.ts';
+import { WEB_SERVER_FACT_STUB } from '../test/stubs/web-server.stub.ts';
 import { freePorts } from '../test/utils/static-server.spec.util.ts';
 
 const START_TIMEOUT_MS = 30_000;
+const SLOW_STOP_MS = 200;
+const STOP_ERROR = 'child error while stopping';
+
+vi.mock(import('../data-access/server.process.ts'), async (importOriginal) => {
+  const actual = await importOriginal();
+  const stopSpy = vi.fn(actual.stopServer);
+  const mocked: typeof actual = { ...actual, stopServer: stopSpy };
+
+  return mocked;
+});
+
+/** A server whose child has nothing to do, for cases where `stopServer` is replaced. */
+const idleServer = (): RunningServer => {
+  const child = spawn(process.execPath, ['-e', ''], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const server: RunningServer = { child, fact: WEB_SERVER_FACT_STUB };
+
+  return server;
+};
 
 const startsOf = async (packageDir: string): Promise<string> => {
   return readFile(join(packageDir, '.atomizer/starts.log'), 'utf8').catch((): string => '');
@@ -74,6 +96,33 @@ describe('FEATURE: web servers', (): void => {
       },
       START_TIMEOUT_MS
     );
+  });
+
+  describe('GIVEN two servers whose first stop rejects while the second is slow', (): void => {
+    let events: string[];
+
+    beforeEach((): void => {
+      events = [];
+      vi.mocked(stopServer).mockRejectedValueOnce(new Error(STOP_ERROR));
+      vi.mocked(stopServer).mockImplementationOnce(async (): Promise<void> => {
+        await sleep(SLOW_STOP_MS);
+        events.push('slow server stopped');
+      });
+    });
+
+    it('WHEN they are stopped THEN the stop rejects only after the slow server has stopped', async (): Promise<void> => {
+      const stopping = stopWebServers([idleServer(), idleServer()]);
+
+      await stopping.catch((): number => events.push('stop rejected'));
+
+      expect(events).toEqual(['slow server stopped', 'stop rejected']);
+    });
+
+    it('WHEN they are stopped THEN the rejection names the failed stop', async (): Promise<void> => {
+      const stopping = stopWebServers([idleServer(), idleServer()]);
+
+      await expect(stopping).rejects.toThrow(STOP_ERROR);
+    });
   });
 
   describe('GIVEN a Playwright config that cannot be listed', (): void => {
