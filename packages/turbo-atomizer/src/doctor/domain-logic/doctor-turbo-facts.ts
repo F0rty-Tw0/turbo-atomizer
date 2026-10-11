@@ -1,7 +1,8 @@
+import { readFileTaskPaths } from '../../shared/atomizer/utils/file-tasks.util.ts';
 import { TurboQueryException } from '../../shared/turbo/common/turbo-query.exception.ts';
 import { readAtomsFile } from '../../sync/data-access/atoms-file.store.ts';
 import type { DoctorDeps, OutsideImport, TurboFacts, TurboScan } from '../common/doctor-facts.type.ts';
-import { readFileTaskPaths, toOutsideImports } from '../utils/doctor-facts.util.ts';
+import { toOutsideImports } from '../utils/doctor-facts.util.ts';
 
 const NO_TURBO_FACTS: TurboFacts = { dependencyTasks: [], outsideImports: [], turboQueryFailure: undefined };
 

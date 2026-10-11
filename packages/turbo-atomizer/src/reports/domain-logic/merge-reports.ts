@@ -1,6 +1,7 @@
 import { dirname, join, resolve } from 'node:path';
 
 import type { AtomizerMetadata } from '../../shared/atomizer/common/atomizer.type.ts';
+import { toFileTaskPaths } from '../../shared/atomizer/utils/file-tasks.util.ts';
 import type { AtomizerConfig } from '../../shared/config/common/atomizer-config.type.ts';
 import { loadAtomizerConfig } from '../../shared/config/domain-logic/atomizer-config.ts';
 import { listSpecs } from '../../shared/playwright/data-access/playwright-list.process.ts';
@@ -13,7 +14,6 @@ import { collectBlobs, createBlobDir, removeBlobDir } from '../data-access/blob-
 import { removeMergeConfig, writeMergeConfig } from '../data-access/merge-config.store.ts';
 import { readMergeStatus } from '../data-access/merge-status.store.ts';
 import { blobCountWarning, missingBlobMessage } from '../utils/blob-count.util.ts';
-import { toFileTaskPaths } from '../utils/file-tasks.util.ts';
 import { renderMergeConfig } from '../utils/merge-config.util.ts';
 
 type MergeRun = {
