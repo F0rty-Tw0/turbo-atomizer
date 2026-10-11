@@ -1,9 +1,10 @@
 import type { Server, Socket } from 'node:net';
-import { tmpdir, userInfo } from 'node:os';
-import { dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
+import { PIPE_TOKEN_FILE } from '../common/server.const.ts';
 import { acquireLock, releaseLock } from '../data-access/rendezvous.lock.ts';
-import { ensurePrivateDir, refuseForeignSocket } from '../data-access/rendezvous.path.ts';
+import { ensurePrivateDir, readOrCreatePipeToken, refuseForeignSocket } from '../data-access/rendezvous.path.ts';
 import { closeRendezvous, listenRendezvous, removeStaleSocket } from '../data-access/rendezvous.socket.ts';
 import { lockPathOf, rendezvousPath } from '../utils/rendezvous-path.util.ts';
 
@@ -12,18 +13,27 @@ const isWindows = process.platform === 'win32';
 /** Undefined on Windows, where a named pipe has no file owner. */
 const ownUid = process.getuid?.();
 
-/** The uid on POSIX, never `os.userInfo()`, which throws for a uid without a passwd entry (containers run with `--user`). */
-const ownUser = (): string => {
-  if (ownUid !== undefined) return String(ownUid);
+/**
+ * The uid on POSIX, never `os.userInfo()`, which throws for a uid without a passwd entry (containers run with `--user`).
+ * On Windows a random token, since a named pipe has no file owner to check and a hashed user name is guessable.
+ */
+const userKeyOn = (platform: NodeJS.Platform, tmpDir: string): string => {
+  if (platform !== 'win32') return String(ownUid);
 
-  const { username } = userInfo();
+  const tokenPath = join(tmpDir, PIPE_TOKEN_FILE);
 
-  return username;
+  return readOrCreatePipeToken(tokenPath);
 };
 
-/** Spec §7 Rendezvous: this user's socket for the package, or this user's named pipe on Windows. */
+/** Spec §7 Rendezvous: this user's socket for the package on `platform`, or this user's named pipe on Windows. */
+export const rendezvousPathOn = (packageDir: string, platform: NodeJS.Platform, tmpDir: string): string => {
+  const userKey = userKeyOn(platform, tmpDir);
+
+  return rendezvousPath(packageDir, platform, tmpDir, userKey);
+};
+
 export const ownRendezvousPath = (packageDir: string): string => {
-  return rendezvousPath(packageDir, process.platform, tmpdir(), ownUser());
+  return rendezvousPathOn(packageDir, process.platform, tmpdir());
 };
 
 /** POSIX: creates or verifies the private per-user dir that holds the socket and its lock. */

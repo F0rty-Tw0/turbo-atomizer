@@ -5,6 +5,8 @@ import { lockPathOf, rendezvousPath } from './rendezvous-path.util.ts';
 const MACOS_TMP_DIR = '/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/';
 const MACOS_SOCKET_PATH_LIMIT = 104;
 const MAX_UID = '4294967294';
+const PIPE_TOKEN = '0123456789abcdef0123456789abcdef';
+const OTHER_PIPE_TOKEN = 'fedcba9876543210fedcba9876543210';
 
 describe('FEATURE: rendezvous path', () => {
   describe('GIVEN a package dir on Linux', () => {
@@ -50,19 +52,18 @@ describe('FEATURE: rendezvous path', () => {
   });
 
   describe('GIVEN a package dir on Windows', () => {
-    it('WHEN the path is built THEN it is a named pipe with a user hash, the package hash and no tmp dir', () => {
+    it('WHEN the path is built THEN it is a named pipe with the pipe token, the package hash and no tmp dir', () => {
       const socketPath = rendezvousPath('C:\\repo\\apps\\web-e2e', 'linux', '/tmp', '1000');
       const hash = socketPath.slice(-'0123456789ab.sock'.length, -'.sock'.length);
-      const expected = new RegExp(String.raw`^\\\\\.\\pipe\\turbo-atomizer-[0-9a-f]{12}-${hash}$`);
 
-      const path = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', 'dev');
+      const path = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', PIPE_TOKEN);
 
-      expect(path).toMatch(expected);
+      expect(path).toBe(`\\\\.\\pipe\\turbo-atomizer-${PIPE_TOKEN}-${hash}`);
     });
 
-    it('WHEN two users build it THEN the pipe names differ', () => {
-      const mine = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', 'dev');
-      const theirs = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', 'other');
+    it('WHEN two pipe tokens build it THEN the pipe names differ', () => {
+      const mine = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', PIPE_TOKEN);
+      const theirs = rendezvousPath('C:\\repo\\apps\\web-e2e', 'win32', 'C:\\Temp', OTHER_PIPE_TOKEN);
 
       expect(mine).not.toBe(theirs);
     });

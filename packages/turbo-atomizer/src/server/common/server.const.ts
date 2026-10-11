@@ -35,3 +35,9 @@ export const PROBE_REQUEST_TIMEOUT_MS = 5000;
 export const MAX_PROBE_REDIRECTS = 10;
 
 export const SERVER_LOG_FILE = 'server.log';
+
+export const PIPE_TOKEN_FILE = 'turbo-atomizer-pipe.token';
+
+export const PIPE_TOKEN_BYTES = 16;
+
+export const PIPE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;

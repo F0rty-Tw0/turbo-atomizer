@@ -1,14 +1,18 @@
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { access, chmod, mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { claimRendezvous, releaseRendezvous } from './rendezvous.ts';
+import { claimRendezvous, releaseRendezvous, rendezvousPathOn } from './rendezvous.ts';
+import { PIPE_TOKEN_FILE } from '../common/server.const.ts';
 import { acquireLock } from '../data-access/rendezvous.lock.ts';
+
+const PACKAGE_DIR = 'C:\\repo\\apps\\web-e2e';
 
 const endConnection = (socket: Socket): void => {
   socket.end();
@@ -21,7 +25,7 @@ const exists = async (path: string): Promise<boolean> => {
   );
 };
 
-describe('FEATURE: rendezvous claim', (): void => {
+describe('FEATURE: rendezvous', (): void => {
   let directory: string;
   let socketPath: string;
   let lockPath: string;
@@ -99,6 +103,51 @@ describe('FEATURE: rendezvous claim', (): void => {
 
       expect(server).toBeUndefined();
       await expect(exists(socketPath)).resolves.toBe(false);
+    });
+  });
+
+  describe('GIVEN Windows and no pipe token yet', (): void => {
+    it('WHEN the path is built THEN it is a pipe named after the token stored in the tmp dir', async (): Promise<void> => {
+      const path = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+
+      const token = await readFile(join(directory, PIPE_TOKEN_FILE), 'utf8');
+      const expected = new RegExp(String.raw`^\\\\\.\\pipe\\turbo-atomizer-${token}-[0-9a-f]{12}$`);
+
+      expect(path).toMatch(expected);
+    });
+
+    it('WHEN the path is built twice THEN the token is reused and both paths are equal', (): void => {
+      const first = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+      const second = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+
+      expect(first).toBe(second);
+    });
+
+    it('WHEN the path is built THEN it holds no hash of the user name', (): void => {
+      const userHash = createHash('sha256').update(userInfo().username).digest('hex').slice(0, 12);
+
+      const path = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+
+      expect(path).not.toContain(userHash);
+    });
+  });
+
+  describe('GIVEN Windows and two tmp dirs, each with its own pipe token', (): void => {
+    let otherDirectory: string;
+
+    beforeEach(async (): Promise<void> => {
+      otherDirectory = await mkdtemp(join(tmpdir(), 'atomizer-claim-'));
+    });
+
+    afterEach(async (): Promise<void> => {
+      await rm(otherDirectory, { force: true, recursive: true });
+    });
+
+    it('WHEN both paths are built THEN the pipe names differ', (): void => {
+      const mine = rendezvousPathOn(PACKAGE_DIR, 'win32', directory);
+      const theirs = rendezvousPathOn(PACKAGE_DIR, 'win32', otherDirectory);
+
+      expect(mine).not.toBe(theirs);
     });
   });
 });

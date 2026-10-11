@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { chmod, lstat, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:net';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -7,9 +7,11 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ensurePrivateDir, refuseForeignSocket } from './rendezvous.path.ts';
+import { ensurePrivateDir, readOrCreatePipeToken, refuseForeignSocket } from './rendezvous.path.ts';
+import { PIPE_TOKEN_PATTERN } from '../common/server.const.ts';
 
 const PERMISSION_BITS = 0o777;
+const PIPE_TOKEN = '0123456789abcdef0123456789abcdef';
 const uid = process.getuid?.() ?? 0;
 const otherUid = uid + 1;
 
@@ -112,6 +114,45 @@ describe('FEATURE: rendezvous path checks', (): void => {
       const checked = refuseForeignSocket(join(directory, 'ta-missing.sock'), uid);
 
       await expect(checked).resolves.toBeUndefined();
+    });
+  });
+
+  describe('GIVEN no pipe token file', (): void => {
+    it('WHEN the token is read THEN a 32-char hex token is written and returned', async (): Promise<void> => {
+      const tokenPath = join(directory, 'pipe.token');
+
+      const token = readOrCreatePipeToken(tokenPath);
+
+      expect(token).toMatch(PIPE_TOKEN_PATTERN);
+      await expect(readFile(tokenPath, 'utf8')).resolves.toBe(token);
+    });
+
+    it('WHEN the token is read THEN no draft file is left behind', async (): Promise<void> => {
+      readOrCreatePipeToken(join(directory, 'pipe.token'));
+
+      await expect(readdir(directory)).resolves.toEqual(['pipe.token']);
+    });
+  });
+
+  describe('GIVEN a pipe token file', (): void => {
+    it('WHEN the token is read THEN the stored token is returned', async (): Promise<void> => {
+      const tokenPath = join(directory, 'pipe.token');
+
+      await writeFile(tokenPath, PIPE_TOKEN);
+
+      const token = readOrCreatePipeToken(tokenPath);
+
+      expect(token).toBe(PIPE_TOKEN);
+    });
+  });
+
+  describe('GIVEN a pipe token file that does not hold a token', (): void => {
+    it('WHEN the token is read THEN it is refused naming the file', async (): Promise<void> => {
+      const tokenPath = join(directory, 'pipe.token');
+
+      await writeFile(tokenPath, '');
+
+      expect((): string => readOrCreatePipeToken(tokenPath)).toThrow(`${tokenPath} does not hold a 32-char hex token`);
     });
   });
 });
