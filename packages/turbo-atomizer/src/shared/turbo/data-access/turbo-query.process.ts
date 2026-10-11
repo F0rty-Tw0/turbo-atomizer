@@ -1,10 +1,6 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
 
-import { z } from 'zod';
-
+import { resolveTurboBin } from './turbo-bin.path.ts';
 import { toStderrTail } from '../../playwright/utils/playwright-list-mapper.util.ts';
 import { TurboQueryException } from '../common/turbo-query.exception.ts';
 import { fileDepsResultSchema, packageTasksResultSchema } from '../common/turbo-query.schema.ts';
@@ -30,21 +26,7 @@ type TaskItem = {
   readonly name: string;
 };
 
-const binManifestSchema = z.looseObject({
-  bin: z.looseObject({ turbo: z.string() })
-});
-
 const ROOT_PACKAGE_NAME = '//';
-
-const resolveTurboBin = (root: string): string => {
-  const require = createRequire(import.meta.url);
-  const paths = [root];
-  const manifestPath = require.resolve('turbo/package.json', { paths });
-  const raw: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const manifest = binManifestSchema.parse(raw);
-
-  return join(dirname(manifestPath), manifest.bin.turbo);
-};
 
 const runQuery = async (run: TurboQueryRun): Promise<string> => {
   return new Promise((resolve, reject): void => {
