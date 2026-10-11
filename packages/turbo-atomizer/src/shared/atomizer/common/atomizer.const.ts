@@ -37,3 +37,18 @@ export const PLAYWRIGHT_CONFIG_FILES = [
   'playwright.config.cts',
   'playwright.config.cjs'
 ];
+
+/** Suffix of the aggregate task: `<task>--all`. */
+export const ALL_TASK_SUFFIX = '--all';
+
+/** Tag on the generated package's turbo.json; part of the Console contract. */
+export const ATOMIZER_DEFINITIONS_TAG = 'atomizer:definitions';
+
+/** Tag on every carrier task; part of the Console contract (spec §9). */
+export const ATOMIZER_CARRIER_TAG = 'atomizer:carrier';
+
+/** Tag on live (uncached-pattern) file tasks; part of the Console contract. */
+export const ATOMIZER_LIVE_TAG = 'atomizer:live';
+
+/** Carrier task name infix: `<task>-src--<task path>`; file tasks always start `<task>--` (spec §4). */
+export const CARRIER_TASK_INFIX = '-src--';
