@@ -42,8 +42,6 @@ const AFFECTED_FILTER = '--filter=web-e2e';
 // the supervisor's and the server's stdout and stderr, which explain a supervisor that is gone
 const SERVER_LOG = `${TEST_PACKAGE_DIR}/.atomizer/server.log`;
 
-const LAUNCH_MARK = "started outside turbo's job in";
-
 const noServerLog = (): string => `no ${SERVER_LOG}`;
 
 describe('FEATURE: Windows gate', (): void => {
@@ -74,11 +72,8 @@ describe('FEATURE: Windows gate', (): void => {
         const currentLog = await workspace.read(SERVER_LOG).catch(noServerLog);
         const previousLog = await workspace.read(`${SERVER_LOG}.1`).catch(noServerLog);
         const serverLog = `${previousLog}\n${currentLog}`;
-        const launchLines = serverLog.split('\n').filter((line): boolean => line.includes(LAUNCH_MARK));
 
         serverPid = pids.at(-1) ?? 0;
-        // TEMPORARY (PR #9, S1): prints the WMI launch times on CI, removed with the job probe
-        console.warn(`LAUNCH-TIMES ${JSON.stringify(launchLines)}`);
 
         // a garbled spec path selects no tests, and the zero-test guard fails that file task
         expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
