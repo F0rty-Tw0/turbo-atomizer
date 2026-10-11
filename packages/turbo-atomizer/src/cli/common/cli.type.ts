@@ -15,6 +15,13 @@ type PackageCommand = {
   readonly package?: string | undefined;
 };
 
+type AffectedCommand = {
+  readonly command: 'affected';
+  /** Args after `--`, appended to `turbo run`. */
+  readonly forwarded: string[];
+  readonly package?: string | undefined;
+};
+
 type VersionCommand = {
   readonly command: 'version';
 };
@@ -25,4 +32,4 @@ type UsageCommand = {
   readonly message: string;
 };
 
-export type CliCommand = InitCommand | PackageCommand | SyncCommand | UsageCommand | VersionCommand;
+export type CliCommand = AffectedCommand | InitCommand | PackageCommand | SyncCommand | UsageCommand | VersionCommand;

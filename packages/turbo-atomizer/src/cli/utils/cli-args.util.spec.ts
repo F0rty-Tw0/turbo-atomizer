@@ -75,6 +75,40 @@ describe('FEATURE: CLI arguments', () => {
     });
   });
 
+  describe('GIVEN the affected command', () => {
+    it('WHEN --package and args after -- are passed THEN the package is read and the args are forwarded', () => {
+      const expected: CliCommand = { command: 'affected', forwarded: ['--concurrency=2'], package: 'apps/e' };
+
+      const command = parseCliArgs(['affected', '--package', 'apps/e', '--', '--concurrency=2']);
+
+      expect(command).toEqual(expected);
+    });
+
+    it('WHEN no option is passed THEN nothing is forwarded and no package is set', () => {
+      const expected: CliCommand = { command: 'affected', forwarded: [] };
+
+      const command = parseCliArgs(['affected']);
+
+      expect(command).toEqual(expected);
+    });
+
+    it('WHEN args after -- look like atomizer options THEN they are forwarded untouched', () => {
+      const expected: CliCommand = { command: 'affected', forwarded: ['--package', 'x', '--', '--help'] };
+
+      const command = parseCliArgs(['affected', '--', '--package', 'x', '--', '--help']);
+
+      expect(command).toEqual(expected);
+    });
+
+    it('WHEN a positional argument comes before -- THEN it is a usage error with exit code 2', () => {
+      const namesArgument: unknown = expect.stringContaining('apps/e');
+
+      const command = parseCliArgs(['affected', 'apps/e', '--', '--concurrency=2']);
+
+      expect(command).toMatchObject({ command: 'usage', exitCode: 2, message: namesArgument });
+    });
+  });
+
   describe('GIVEN a top-level flag', () => {
     it('WHEN --version is passed THEN the version command is returned', () => {
       const expected: CliCommand = { command: 'version' };
@@ -136,6 +170,16 @@ describe('FEATURE: CLI arguments', () => {
       const command = parseCliArgs(['sync', 'apps/e']);
 
       expect(command).toMatchObject({ command: 'usage', exitCode: 2, message: namesArgument });
+    });
+
+    it('WHEN args after -- follow a command other than affected THEN it is a usage error with exit code 2', () => {
+      const command = parseCliArgs(['sync', '--', '--concurrency=2']);
+
+      expect(command).toMatchObject({ command: 'usage', exitCode: 2 });
+    });
+
+    it('WHEN the usage is printed THEN it lists the affected command', () => {
+      expect(CLI_USAGE).toContain('  affected ');
     });
   });
 });
