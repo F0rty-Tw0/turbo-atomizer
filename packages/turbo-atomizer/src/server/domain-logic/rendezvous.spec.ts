@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { access, chmod, mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -54,6 +54,17 @@ describe('FEATURE: rendezvous claim', (): void => {
 
       await expect(exists(socketPath)).resolves.toBe(false);
       await expect(exists(lockPath)).resolves.toBe(false);
+    });
+  });
+
+  describe('GIVEN a rendezvous dir other users can enter', (): void => {
+    it('WHEN it is claimed THEN the claim rejects naming the dir and nothing listens', async (): Promise<void> => {
+      await chmod(directory, 0o755);
+
+      const claim = claimRendezvous(socketPath, endConnection);
+
+      await expect(claim).rejects.toThrow(`${directory} must be a directory owned by uid`);
+      await expect(exists(socketPath)).resolves.toBe(false);
     });
   });
 

@@ -16,6 +16,7 @@ import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import { CLIENT_SILENCE_MS, LEASE_ATTEMPTS, PROBE_BACKOFF_MS } from '../common/server.const.ts';
 import { acquireLock, releaseLock } from '../data-access/rendezvous.lock.ts';
+import { refuseForeignSocket } from '../data-access/rendezvous.path.ts';
 import type { StaticServer } from '../test/common/server.type.ts';
 import { createStaleSocket } from '../test/utils/stale-socket.spec.util.ts';
 import { exitedPid, freePort, isAlive, startStaticServer, waitUntil } from '../test/utils/static-server.spec.util.ts';
@@ -37,6 +38,14 @@ const spanOf = (times: number[]): number => Math.max(...times) - Math.min(...tim
 const STARTING_LINE = '{"state":"starting"}\n';
 const READY_LINE = '{"state":"ready","env":{"PORT":"1"}}\n';
 const HEARTBEAT_AT_MS = 25_000;
+
+vi.mock(import('../data-access/rendezvous.path.ts'), async (importOriginal) => {
+  const actual = await importOriginal();
+  const refuseSpy = vi.fn(actual.refuseForeignSocket);
+  const mocked: typeof actual = { ...actual, refuseForeignSocket: refuseSpy };
+
+  return mocked;
+});
 
 const nextTurn = async (): Promise<void> => new Promise((resolve): void => void setImmediate(resolve));
 
@@ -261,6 +270,14 @@ describe('FEATURE: server lease', (): void => {
 
       expect(connectedAt).toHaveLength(LEASE_ATTEMPTS);
       expect(spanOf(connectedAt)).toBeGreaterThanOrEqual(MIN_LEASE_BACKOFF_MS);
+    }, CASE_TIMEOUT_MS);
+
+    it('WHEN its socket belongs to another uid THEN the lease rejects before any connect', async (): Promise<void> => {
+      vi.mocked(refuseForeignSocket).mockRejectedValueOnce(new ServerFailedException(`${socketPath} is owned by uid 0`, ''));
+
+      await expect(lease(copy.directory)).rejects.toThrow('is owned by uid 0');
+
+      expect(connectedAt).toEqual([]);
     }, CASE_TIMEOUT_MS);
   });
 
