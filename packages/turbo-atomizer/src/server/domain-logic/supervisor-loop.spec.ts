@@ -10,22 +10,25 @@ import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SupervisorLoop } from './supervisor-loop.ts';
-import { stopWebServers } from './web-servers.ts';
+import { startWebServers, stopWebServers } from './web-servers.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
-import type { RunningServer, SupervisorLoopOptions } from '../common/server.type.ts';
+import { STARTING_INTERVAL_MS, STARTING_MESSAGE } from '../common/server.const.ts';
+import type { RunningServer, StartOutcome, SupervisorLoopOptions } from '../common/server.type.ts';
 import { connectSocket, onServerMessages } from '../data-access/rendezvous-client.socket.ts';
 import { stopServer } from '../data-access/server.process.ts';
 import { freePort, isAlive, waitUntil } from '../test/utils/static-server.spec.util.ts';
 
 const IDLE_MS = 300;
 const LOOP_TIMEOUT_MS = 30_000;
+const MESSAGE_WAIT_MS = 1000;
 
 vi.mock(import('./web-servers.ts'), async (importOriginal) => {
   const actual = await importOriginal();
+  const startSpy = vi.fn(actual.startWebServers);
   const stopSpy = vi.fn(actual.stopWebServers);
-  const mocked: typeof actual = { ...actual, stopWebServers: stopSpy };
+  const mocked: typeof actual = { ...actual, startWebServers: startSpy, stopWebServers: stopSpy };
 
   return mocked;
 });
@@ -37,6 +40,9 @@ const stopThenReject = async (servers: RunningServer[]): Promise<void> => {
   throw new Error('child error while stopping');
 };
 
+/** A start that never settles, so the loop stays in its starting phase. */
+const neverStart = async (): Promise<StartOutcome> => new Promise((): undefined => undefined);
+
 const collectText = (log: PassThrough): (() => string) => {
   let text = '';
 
@@ -45,6 +51,14 @@ const collectText = (log: PassThrough): (() => string) => {
   });
 
   return (): string => text;
+};
+
+const collectMessages = (socket: Socket): ServerMessage[] => {
+  const messages: ServerMessage[] = [];
+
+  onServerMessages(socket, (message: ServerMessage): number => messages.push(message));
+
+  return messages;
 };
 
 const messagesUntilAnswer = async (socket: Socket): Promise<ServerMessage[]> => {
@@ -192,6 +206,39 @@ describe('FEATURE: supervisor loop', (): void => {
       },
       LOOP_TIMEOUT_MS
     );
+  });
+
+  describe('GIVEN a webServer that is still starting', (): void => {
+    beforeEach((): void => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      vi.mocked(startWebServers).mockImplementationOnce(neverStart);
+    });
+
+    afterEach((): void => {
+      vi.useRealTimers();
+    });
+
+    it('WHEN 5 s pass THEN a connected client hears starting again', async (): Promise<void> => {
+      const options: SupervisorLoopOptions = {
+        packageDir: copy.directory,
+        configFile: 'playwright.config.ts',
+        idleMs: IDLE_MS,
+        log: new PassThrough(),
+        startupFailure: undefined
+      };
+
+      await listen(options);
+
+      const client = await connectSocket(socketPath);
+      const messages = collectMessages(client);
+
+      await waitUntil((): boolean => messages.length === 1, MESSAGE_WAIT_MS);
+      await vi.advanceTimersByTimeAsync(STARTING_INTERVAL_MS);
+      await waitUntil((): boolean => messages.length === 2, MESSAGE_WAIT_MS);
+
+      client.destroy();
+      expect(messages).toEqual([STARTING_MESSAGE, STARTING_MESSAGE]);
+    });
   });
 
   describe('GIVEN a startup failure', (): void => {
