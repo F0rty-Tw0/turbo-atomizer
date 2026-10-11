@@ -11,6 +11,15 @@
   ],
   "license": "MIT",
   "author": "Artiom Tofan artiomtofancv@gmail.com",
+  "homepage": "https://github.com/F0rty-Tw0/turbo-atomizer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/F0rty-Tw0/turbo-atomizer.git",
+    "directory": "packages/turbo-atomizer"
+  },
+  "bugs": {
+    "url": "https://github.com/F0rty-Tw0/turbo-atomizer/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
