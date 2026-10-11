@@ -1,0 +1,5 @@
+{
+  "name": "invalid-package-json-config",
+  "private": true,
+  "turbo-atomizer": { "task": 3 }
+}

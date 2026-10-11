@@ -1,0 +1,5 @@
+{
+  "name": "package-json-config",
+  "private": true,
+  "turbo-atomizer": { "task": "smoke", "playwrightConfig": "e2e.config.ts" }
+}
