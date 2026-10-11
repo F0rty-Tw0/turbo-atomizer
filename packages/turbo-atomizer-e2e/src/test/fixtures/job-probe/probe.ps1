@@ -39,21 +39,3 @@ if ($Mode -eq 'self') {
     silentBreakawayOk = (($flags -band 0x1000) -ne 0)
   } | ConvertTo-Json -Compress
 }
-elseif ($Mode -eq 'pids') {
-  $req = [Console]::In.ReadToEnd() | ConvertFrom-Json
-  $out = @{}
-  foreach ($p in $req.pids) {
-    $handle = [JobProbe]::OpenProcess(0x1000, $false, [uint32]$p)
-    if ($handle -eq [IntPtr]::Zero) { $out["$p"] = 'no-handle'; continue }
-    $r = $false
-    [JobProbe]::IsProcessInJob($handle, [IntPtr]::Zero, [ref]$r) | Out-Null
-    $out["$p"] = $r
-  }
-  $out | ConvertTo-Json -Compress
-}
-elseif ($Mode -eq 'create') {
-  $req = [Console]::In.ReadToEnd() | ConvertFrom-Json
-  $startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ EnvironmentVariables = [string[]]$req.env; ShowWindow = [uint16]0 }
-  $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $req.commandLine; CurrentDirectory = $req.cwd; ProcessStartupInformation = $startup }
-  @{ returnValue = $r.ReturnValue; processId = $r.ProcessId } | ConvertTo-Json -Compress
-}
