@@ -21,26 +21,50 @@ type PowerShellRun = {
 
 const ignoreStdinError = (): void => undefined;
 
-/** Runs the launch script with `stdin` piped in; resolves however it ends, rejects only when powershell.exe cannot start. */
-const runPowerShell = async (stdin: string): Promise<PowerShellRun> => {
+const describeExit = (code: number | null, signal: NodeJS.Signals | null): string => {
+  if (code === null) return `was stopped by ${String(signal)}`;
+
+  return `exited with code ${String(code)}`;
+};
+
+/**
+ * Runs the launch script with `stdin` piped in, killing it after `timeoutMs`; resolves however it ends, rejects only when
+ * powershell.exe cannot start.
+ */
+const runPowerShell = async (stdin: string, timeoutMs: number): Promise<PowerShellRun> => {
   return new Promise((resolve, reject): void => {
-    const child = spawn(POWERSHELL_EXE, POWERSHELL_LAUNCH_ARGS, { timeout: WINDOWS_LAUNCH_TIMEOUT_MS, windowsHide: true });
+    const child = spawn(POWERSHELL_EXE, POWERSHELL_LAUNCH_ARGS, { windowsHide: true });
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
+    let timedOut = false;
+
+    const kill = (): void => {
+      timedOut = true;
+      child.kill();
+    };
+    const timer = setTimeout(kill, timeoutMs);
 
     const settle = (code: number | null, signal: NodeJS.Signals | null): void => {
+      clearTimeout(timer);
+
       const stdout = Buffer.concat(stdoutChunks).toString('utf8');
       const stderr = Buffer.concat(stderrChunks).toString('utf8');
-      const exit = code === null ? `was stopped by ${String(signal)}` : `exited with code ${String(code)}`;
+      const timeout = `timed out after ${String(timeoutMs / 1000)} s`;
+      const ended = describeExit(code, signal);
+      const exit = timedOut ? timeout : ended;
       const run: PowerShellRun = { exit, stdout, stderr };
 
       resolve(run);
+    };
+    const fail = (error: Error): void => {
+      clearTimeout(timer);
+      reject(error);
     };
 
     child.stdout.on('data', (chunk: Buffer): number => stdoutChunks.push(chunk));
     child.stderr.on('data', (chunk: Buffer): number => stderrChunks.push(chunk));
     child.stdin.on('error', ignoreStdinError);
-    child.on('error', reject);
+    child.on('error', fail);
     child.on('close', settle);
     child.stdin.end(stdin);
   });
@@ -65,7 +89,7 @@ const parseResult = (run: PowerShellRun): number => {
     if (error instanceof ServerFailedException) throw error;
 
     throw new ServerFailedException(
-      `${OUTSIDE_JOB_REASON}: ${POWERSHELL_EXE} ${run.exit} with no Win32_Process.Create result`,
+      `${OUTSIDE_JOB_REASON}: the WMI launch through ${POWERSHELL_EXE} ${run.exit} with no Win32_Process.Create result`,
       stderrTail
     );
   }
@@ -75,9 +99,9 @@ const parseResult = (run: PowerShellRun): number => {
  * Starts `launch` through WMI's `Win32_Process.Create`, so it runs outside the kill-on-close job turbo puts each task in,
  * and returns its pid. The env goes over stdin, never into a command line other processes can read. Windows only.
  */
-export const launchOutsideJob = async (launch: WindowsLaunch): Promise<number> => {
+export const launchOutsideJob = async (launch: WindowsLaunch, timeoutMs = WINDOWS_LAUNCH_TIMEOUT_MS): Promise<number> => {
   const stdin = toLaunchStdin(launch);
-  const run = await runPowerShell(stdin).catch(unavailable);
+  const run = await runPowerShell(stdin, timeoutMs).catch(unavailable);
 
   return parseResult(run);
 };
