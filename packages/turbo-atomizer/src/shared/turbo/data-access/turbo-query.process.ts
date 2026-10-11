@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { sep } from 'node:path';
 
 import { resolveTurboBin } from './turbo-bin.path.ts';
 import { ATOMIZER_TASK_TAG_PREFIX } from '../../atomizer/common/atomizer.const.ts';
@@ -67,7 +68,7 @@ const taskName = (task: TaskItem): string => task.name;
 
 const toPackageTasks = (dependency: DependencyPackage): PackageTasks => {
   const tasks = dependency.tasks.items.map(taskName);
-  const dir = toPosixPath(dependency.path);
+  const dir = toPosixPath(dependency.path, sep);
   const packageTasks: PackageTasks = { name: dependency.name, dir, tasks };
 
   return packageTasks;
@@ -84,7 +85,7 @@ export const turboQueryFileDeps = async (root: string, file: string): Promise<st
   const result = fileDepsResultSchema.parse(raw);
   const paths = result.data.file.dependencies.files.items.map((item): string => item.path);
 
-  return toWorkspaceFiles(paths);
+  return toWorkspaceFiles(paths, sep);
 };
 
 /** The direct workspace dependencies of `packageName` with their task names; the root package `//` is dropped. */
