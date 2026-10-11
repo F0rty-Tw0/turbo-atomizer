@@ -10,6 +10,11 @@ export type InitOptions = {
   readonly packageDir: string;
 };
 
+export type InitHandlerOptions = {
+  readonly cliVersion: string;
+  readonly generatedDir?: string | undefined;
+};
+
 export type PeerVersions = {
   readonly playwright: string;
   readonly turbo: string;

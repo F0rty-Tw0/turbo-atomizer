@@ -4,14 +4,17 @@ import { planInit } from './init-preflight.ts';
 import { ATOMIZER_CONFIG_FILE, ATOMIZER_OUTPUT_DIR } from '../../shared/atomizer/common/atomizer.const.ts';
 import { writeAtomizerConfigFile } from '../../shared/config/data-access/atomizer-config.store.ts';
 import { listSpecs } from '../../shared/playwright/data-access/playwright-list.process.ts';
+import { getPlaywrightVersion } from '../../shared/playwright/data-access/playwright-version.path.ts';
 import type { JsonEdit } from '../../shared/turbo/common/turbo-json.type.ts';
 import { editTurboJson } from '../../shared/turbo/data-access/turbo-json.store.ts';
+import { getTurboVersion } from '../../shared/turbo/data-access/turbo-version.path.ts';
 import { NPM_LOCKFILE, PNPM_LOCKFILE } from '../../shared/workspace/common/workspace.const.ts';
 import { ensureGitignoreLines } from '../../shared/workspace/data-access/gitignore.store.ts';
+import { runInstall } from '../../shared/workspace/data-access/install.process.ts';
 import { ensureRootDevDependency } from '../../shared/workspace/data-access/root-package-json.store.ts';
 import { ensureWorkspaceGlob } from '../../shared/workspace/data-access/workspace-globs.store.ts';
 import { syncPackage } from '../../sync/domain-logic/sync.ts';
-import type { InitDeps, InitOptions, InitPlan, InitReport, TurboJsonPlan } from '../common/init.type.ts';
+import type { InitDeps, InitOptions, InitPlan, InitReport, PeerVersions, TurboJsonPlan } from '../common/init.type.ts';
 import { writeGeneratedPackage } from '../data-access/generated-package.store.ts';
 import { initNextSteps } from '../utils/init-summary.util.ts';
 
@@ -110,3 +113,16 @@ export const initPackage = async (options: InitOptions, deps: InitDeps): Promise
 
   return syncOrNextSteps(plan, base);
 };
+
+const readPeerVersions = async (root: string, packageDir: string): Promise<PeerVersions> => {
+  const turbo = await getTurboVersion(root);
+  const playwright = getPlaywrightVersion(packageDir);
+  const versions: PeerVersions = { playwright, turbo };
+
+  return versions;
+};
+
+const INIT_DEPS: InitDeps = { install: runInstall, versions: readPeerVersions };
+
+/** `initPackage` with the real install and the versions resolved from the workspace root and the test package. */
+export const runInit = async (options: InitOptions): Promise<InitReport> => initPackage(options, INIT_DEPS);
