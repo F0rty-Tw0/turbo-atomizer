@@ -67,6 +67,13 @@ jobs:
           cache: true
           require-lockfile: true
 
+      # Same npm as npm-basic's packageManager field, so the npm journey does not depend on the runner's bundled npm
+      - name: Pin npm
+        if: matrix.pm == 'npm'
+        run: |
+          npm install --global npm@11.19.0
+          npm --version
+
       # The fixtures pin the same @playwright/test as the package, so they share this browser build
       - name: Install Chromium
         run: pnpm --filter turbo-atomizer exec playwright install --with-deps --only-shell chromium
