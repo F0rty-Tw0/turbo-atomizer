@@ -36,3 +36,9 @@ export type DoctorFacts = {
   readonly outsideImports: OutsideImport[];
   readonly extraInputs: string[];
 };
+
+/** The turbo queries doctor makes, injected so facts are gathered in tests without spawning turbo. */
+export type DoctorDeps = {
+  readonly queryFileDeps: (root: string, file: string) => Promise<string[]>;
+  readonly queryPackageTasks: (root: string, packageName: string) => Promise<PackageTasks[]>;
+};
