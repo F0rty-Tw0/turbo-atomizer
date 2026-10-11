@@ -2,6 +2,10 @@ export const ATOMIZER_CONFIG_FILE = 'turbo-atomizer.json';
 
 export const ATOMIZER_PACKAGE_JSON_KEY = 'turbo-atomizer';
 
+export const ATOMIZER_METADATA_KEY = 'turbo-atomizer';
+
+export const ATOMIZER_METADATA_VERSION = 1;
+
 export const TURBO_ATOMIZER_ENV = 'TURBO_ATOMIZER';
 
 export const TURBO_ATOMIZER_DESCRIBE_ENV = 'TURBO_ATOMIZER_DESCRIBE';
