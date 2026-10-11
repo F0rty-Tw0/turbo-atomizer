@@ -1,2 +1,8 @@
 packages:
   - packages/*
+
+# Matches the root allowBuilds; nx release runs pnpm install --lockfile-only here through the symlinked node_modules.
+allowBuilds:
+  esbuild: true
+  nx: true
+  unrs-resolver: true

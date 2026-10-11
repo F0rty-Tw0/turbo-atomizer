@@ -1,9 +1,6 @@
-# Changelog
+## 0.1.0 (unreleased)
 
-## 0.1.0
-
-
-_Unreleased._ First release.
+First release.
 
 ### 🚀 Features
 

@@ -33,6 +33,26 @@ describe('FEATURE: release driver', (): void => {
       });
     });
 
+    describe('WHEN a minor release is prepared', (): void => {
+      beforeEach((): void => {
+        const result = scenario.run('prepare', 'minor');
+
+        expect(result.status, result.stderr).toBe(0);
+      });
+
+      it('THEN the CHANGELOG ships the curated 0.1.0 entry under a dated heading', (): void => {
+        const changelog = scenario.changelog();
+
+        expect(changelog).toMatch(/^## 0\.1\.0 \(\d{4}-\d{2}-\d{2}\)\n\nFirst release\.\n/m);
+      });
+
+      it('THEN no commit subject is written into the CHANGELOG', (): void => {
+        const changelog = scenario.changelog();
+
+        expect(changelog).not.toContain('ship the scenario feature');
+      });
+    });
+
     it('WHEN the bump is not patch, minor or major THEN it fails with usage', (): void => {
       const result = scenario.run('plan', 'huge');
 
