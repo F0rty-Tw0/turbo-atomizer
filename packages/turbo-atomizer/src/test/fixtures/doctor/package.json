@@ -1,0 +1,9 @@
+{
+  "name": "doctor",
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "workspaces": [
+    "apps/*",
+    "tools/*"
+  ]
+}
