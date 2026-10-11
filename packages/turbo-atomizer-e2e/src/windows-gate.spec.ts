@@ -1,3 +1,4 @@
+import { basename, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -42,6 +43,14 @@ const AFFECTED_FILTER = '--filter=web-e2e';
 // the supervisor's and the server's stdout and stderr, which explain a supervisor that is gone
 const SERVER_LOG = `${TEST_PACKAGE_DIR}/.atomizer/server.log`;
 
+// a space and non-ASCII in every path the WMI launch carries: the launcher's command line and cwd
+const WORKSPACE_LABEL = 'wörk space';
+// non-ASCII and empty values the WMI launch must hand the supervisor unchanged; the fixture passes both through turbo
+const WMI_PROBE_VALUE = 'héllo 世界';
+const WMI_ENV = { ['ATOMIZER_PROBE']: WMI_PROBE_VALUE, ['ATOMIZER_EMPTY']: '' };
+// what the fixture web server, which inherits the supervisor's env, recorded on start
+const SERVER_SEEN_FILE = '.atomizer/starts.env.json';
+
 const noServerLog = (): string => `no ${SERVER_LOG}`;
 
 describe('FEATURE: Windows gate', (): void => {
@@ -52,7 +61,7 @@ describe('FEATURE: Windows gate', (): void => {
       let serverPid = 0;
 
       beforeAll(async (): Promise<() => Promise<void>> => {
-        workspace = await createSyncedWorkspace('pnpm-basic', 'pnpm');
+        workspace = await createSyncedWorkspace('pnpm-basic', 'pnpm', WORKSPACE_LABEL);
 
         try {
           await setServerIdleMs(workspace, SERVER_IDLE_MS);
@@ -66,7 +75,7 @@ describe('FEATURE: Windows gate', (): void => {
       });
 
       it('WHEN e2e-ci runs THEN every generated command gets its args intact, and turbo returns while the server idles under one supervisor', async (): Promise<void> => {
-        const run = await summarizedRun(workspace.root, 'turbo run e2e-ci');
+        const run = await summarizedRun(workspace.root, 'turbo run e2e-ci', WMI_ENV);
         const processes = await windowsProcesses();
         const pids = await startedPids(workspace.root, 'starts');
         const currentLog = await workspace.read(SERVER_LOG).catch(noServerLog);
@@ -81,6 +90,21 @@ describe('FEATURE: Windows gate', (): void => {
         expect(pids).toHaveLength(1);
         expect(supervisorsOf(processes, workspace.root), serverLog).toHaveLength(1);
         expect(isAlive(serverPid), serverLog).toBe(true);
+      });
+
+      it('WHEN the supervisor was launched through WMI from a dir with a space and non-ASCII THEN the server sees the exec env intact, no registry-only var, and that dir', async (): Promise<void> => {
+        const text = await workspace.read(SERVER_SEEN_FILE);
+        const seen: unknown = JSON.parse(text);
+        const expectedCwd = join(basename(workspace.root), TEST_PACKAGE_DIR);
+        const cwdMatcher: unknown = expect.stringContaining(expectedCwd);
+
+        // turbo's strict env mode drops PROCESSOR_ARCHITECTURE from exec's env, so the server has it only if WMI merged the registry env
+        expect(seen, text).toMatchObject({
+          probe: WMI_PROBE_VALUE,
+          empty: '',
+          processorArchitecture: null,
+          cwd: cwdMatcher
+        });
       });
 
       it('WHEN TURBO_ATOMIZER_ARGS holds a JSON grep with spaces THEN the args reach Playwright whole and the server is reused', async (): Promise<void> => {

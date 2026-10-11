@@ -137,11 +137,16 @@ export const createWorkspace = async (prefix: string, prepare: (root: string) =>
 };
 
 /**
- * Copies fixture `name` to a fresh dir under `os.tmpdir()` and makes it a consumer repo before `turbo-atomizer init`:
- * the built package installed from a tarball, every file committed on `main`. Turbo hashes git-ignored files until a repo's first commit.
+ * Copies fixture `name` to a fresh dir under `os.tmpdir()`, named after `label`, and makes it a consumer repo before
+ * `turbo-atomizer init`: the built package installed from a tarball, every file committed on `main`. Turbo hashes
+ * git-ignored files until a repo's first commit.
  */
-export const createFixtureWorkspace = async (name: FixtureName, pm: PackageManager): Promise<FixtureWorkspace> => {
+export const createFixtureWorkspace = async (
+  name: FixtureName,
+  pm: PackageManager,
+  label: string = name
+): Promise<FixtureWorkspace> => {
   const prepare = async (root: string): Promise<void> => prepareWorkspace(root, name, pm);
 
-  return createWorkspace(name, prepare);
+  return createWorkspace(label, prepare);
 };
