@@ -51,6 +51,24 @@ describe('FEATURE: release driver', (): void => {
 
         expect(changelog).not.toContain('ship the scenario feature');
       });
+
+      it('THEN the manifest version is 0.1.0', (): void => {
+        const version = scenario.version();
+
+        expect(version).toBe('0.1.0');
+      });
+
+      it('THEN the release is tagged v0.1.0', (): void => {
+        const tags = scenario.tags();
+
+        expect(tags).toEqual(['v0.1.0']);
+      });
+
+      it('THEN the version is written to GITHUB_OUTPUT for the push step', (): void => {
+        const output = scenario.githubOutput();
+
+        expect(output).toBe('version=0.1.0\n');
+      });
     });
 
     describe('WHEN a patch release is prepared', (): void => {
@@ -82,6 +100,56 @@ describe('FEATURE: release driver', (): void => {
 
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain('Expected patch, minor, or major.');
+    });
+  });
+
+  describe('GIVEN turbo-atomizer released as v0.1.0 and a feat committed since', (): void => {
+    let scenario: ReleaseScenario;
+
+    beforeEach((): void => {
+      scenario = createReleaseScenario();
+
+      const result = scenario.run('prepare', 'minor');
+
+      expect(result.status, result.stderr).toBe(0);
+
+      scenario.commit('feat: add a second scenario feature');
+    });
+
+    afterEach((): void => {
+      scenario.dispose();
+    });
+
+    describe('WHEN a patch release is prepared', (): void => {
+      beforeEach((): void => {
+        const result = scenario.run('prepare', 'patch');
+
+        expect(result.status, result.stderr).toBe(0);
+      });
+
+      it('THEN nx prepends a 0.1.1 entry generated from the commit since v0.1.0', (): void => {
+        const changelog = scenario.changelog();
+
+        expect(changelog).toMatch(/^## 0\.1\.1 \(\d{4}-\d{2}-\d{2}\)\n\n### 🚀 Features\n\n- add a second scenario feature\n/);
+      });
+
+      it('THEN the curated 0.1.0 entry is kept below it', (): void => {
+        const changelog = scenario.changelog();
+
+        expect(changelog).toMatch(/^## 0\.1\.0 \(\d{4}-\d{2}-\d{2}\)\n\nFirst release\.\n/m);
+      });
+
+      it('THEN the release is tagged v0.1.1', (): void => {
+        const tags = scenario.tags();
+
+        expect(tags).toEqual(['v0.1.0', 'v0.1.1']);
+      });
+
+      it('THEN the version is written to GITHUB_OUTPUT for the push step', (): void => {
+        const output = scenario.githubOutput();
+
+        expect(output).toBe('version=0.1.0\nversion=0.1.1\n');
+      });
     });
   });
 });
