@@ -34,6 +34,7 @@ const ENTRY_FILES = [
   'exec.cjs',
   'index.d.ts',
   'index.js',
+  'merge-status-reporter.cjs',
   'playwright.cjs',
   'playwright.d.ts',
   'playwright.js',

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { affectedHandler } from './affected/feature/affected.handler.ts';
 import type { CliCommand } from './cli/common/cli.type.ts';
@@ -7,10 +7,14 @@ import { parseCliArgs } from './cli/utils/cli-args.util.ts';
 import { getCliVersion } from './config/build-info.ts';
 import { doctorHandler } from './doctor/feature/doctor.handler.ts';
 import { initHandler } from './init/feature/init.handler.ts';
+import { mergeReportsHandler } from './reports/feature/merge-reports.handler.ts';
 import { resolvePackageTargets } from './shared/workspace/domain-logic/package-targets.ts';
 import { syncHandler } from './sync/feature/sync.handler.ts';
 
 type PackagesHandler = (packageDirs: string[]) => Promise<number>;
+
+/** Built next to cli.js; merge-reports loads it from the temporary merge config. */
+const MERGE_STATUS_REPORTER_PATH = join(import.meta.dirname, 'merge-status-reporter.cjs');
 
 const NO_PACKAGES = 'turbo-atomizer: no test package with an atomizer config found; pass --package <dir>\n';
 
@@ -68,9 +72,9 @@ const runCommand = async (command: CliCommand): Promise<number> => {
       return runForTargets(command.package, doctorHandler);
 
     case 'merge-reports':
-      process.stderr.write(`turbo-atomizer: ${command.command} is not available yet\n`);
-
-      return 1;
+      return runForTargets(command.package, async (packageDirs): Promise<number> =>
+        mergeReportsHandler(packageDirs, MERGE_STATUS_REPORTER_PATH)
+      );
   }
 };
 

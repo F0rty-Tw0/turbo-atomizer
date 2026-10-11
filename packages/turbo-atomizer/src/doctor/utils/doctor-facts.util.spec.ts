@@ -1,24 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasFutureFlag, readFileTaskPaths, toOutsideImports } from './doctor-facts.util.ts';
+import { hasFutureFlag, toOutsideImports } from './doctor-facts.util.ts';
 import type { TurboJsonDoc } from '../../shared/turbo/common/turbo-json.type.ts';
-
-const fileTask = { command: ['node'], tags: ['atomizer:e2e-ci'] };
-
-const liveFileTask = { command: ['node'], tags: ['atomizer:e2e-ci', 'atomizer:live'] };
-
-const carrier = { command: ['node', '-e', '0'], tags: ['atomizer:carrier'] };
-
-const allTask = { dependsOn: ['e2e-ci--tests/a.spec.ts'] };
-
-const generatedTasks = {
-  'e2e-ci--tests/a.spec.ts': fileTask,
-  'e2e-ci--tests/live.spec.ts': liveFileTask,
-  'e2e-ci-src--tests/a.spec.ts': carrier,
-  'e2e-ci--all': allTask
-};
-
-const generatedText = JSON.stringify({ extends: ['//'], tasks: generatedTasks });
 
 const rootTurboJson = (futureFlags: Record<string, unknown> | undefined): TurboJsonDoc => {
   const content = { futureFlags };
@@ -28,34 +11,6 @@ const rootTurboJson = (futureFlags: Record<string, unknown> | undefined): TurboJ
 };
 
 describe('FEATURE: doctor facts helpers', (): void => {
-  describe('GIVEN a generated turbo.json', (): void => {
-    it('WHEN file task paths are read THEN only tasks tagged atomizer:<task> are returned, without the task prefix', (): void => {
-      const paths = readFileTaskPaths(generatedText, 'e2e-ci');
-
-      expect(paths).toEqual(['tests/a.spec.ts', 'tests/live.spec.ts']);
-    });
-
-    it('WHEN another task group is read THEN no paths are returned', (): void => {
-      const paths = readFileTaskPaths(generatedText, 'e2e');
-
-      expect(paths).toEqual([]);
-    });
-  });
-
-  describe('GIVEN no readable generated turbo.json', (): void => {
-    it('WHEN the file is missing THEN no paths are returned', (): void => {
-      const paths = readFileTaskPaths(undefined, 'e2e-ci');
-
-      expect(paths).toEqual([]);
-    });
-
-    it('WHEN it has no tasks object THEN no paths are returned', (): void => {
-      const paths = readFileTaskPaths('{ "extends": ["//"] }', 'e2e-ci');
-
-      expect(paths).toEqual([]);
-    });
-  });
-
   describe('GIVEN the files a spec imports', (): void => {
     it('WHEN they are split THEN only files outside the package dir are outside imports', (): void => {
       const files = ['apps/web-e2e/helpers/h.ts', 'shared/x.ts', 'apps/web-e2e-shared/y.ts'];
