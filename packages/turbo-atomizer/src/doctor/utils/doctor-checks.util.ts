@@ -97,9 +97,17 @@ const rejectedFinding = (spec: string): DoctorFinding => {
   );
 };
 
-/** Turbo rejects the generated `command` fields without `experimentalTaskCommand`, so no turbo query fact exists to check then. */
+const turboQueryFindings = (facts: DoctorFacts): DoctorFinding[] => {
+  if (facts.turboQueryFailure === undefined) return [];
+
+  return [error('turbo-query-failed', `The app-dependency and outside-import checks did not run: ${facts.turboQueryFailure}`)];
+};
+
+/** Without `experimentalTaskCommand` turbo is never queried, and a failed query leaves no facts, so there is nothing to check then. */
 const coverageChecks = (facts: DoctorFacts): DoctorFinding[] => {
-  if (!facts.taskCommandFlagSet) return [];
+  const isQueried = facts.taskCommandFlagSet && facts.turboQueryFailure === undefined;
+
+  if (!isQueried) return [];
 
   return checkCoverage(facts);
 };
@@ -120,6 +128,7 @@ export const runDoctorChecks = (facts: DoctorFacts): DoctorFinding[] => {
   const versionFindings = peerFindings.map(toVersionFinding);
   const specFindings = facts.rejectedSpecs.map(rejectedFinding);
   const metadataFindings = metadataChecks(facts);
+  const queryFindings = turboQueryFindings(facts);
   const coverageFindings = coverageChecks(facts);
 
   return [
@@ -130,6 +139,7 @@ export const runDoctorChecks = (facts: DoctorFacts): DoctorFinding[] => {
     ...versionFindings,
     ...specFindings,
     ...metadataFindings,
+    ...queryFindings,
     ...coverageFindings
   ];
 };

@@ -111,6 +111,19 @@ describe('FEATURE: doctor checks', (): void => {
     });
   });
 
+  describe('GIVEN a failed turbo query', (): void => {
+    it('WHEN the checks run THEN only a turbo-query-failed error carrying the failure is returned', (): void => {
+      const metadata = { ...DOCTOR_METADATA_STUB, webServers: [WEB_SERVER_STUB] };
+      const failure = "turbo query failed: exit code 1 in /repo\nx Cannot extend from 'web-e2e-atoms'";
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, metadata, dependencyTasks: [], turboQueryFailure: failure };
+
+      const findings = runDoctorChecks(facts);
+
+      expect(findings).toMatchObject([{ level: 'error', code: 'turbo-query-failed' }]);
+      expect(findings[0]?.message).toContain(failure);
+    });
+  });
+
   describe('GIVEN installed peer versions', (): void => {
     it('WHEN Playwright is below the minimum THEN a peer-version error is returned', (): void => {
       const versions = { turbo: '2.11.7', playwright: '1.55.0' };

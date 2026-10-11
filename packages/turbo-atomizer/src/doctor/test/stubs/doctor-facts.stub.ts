@@ -1,7 +1,7 @@
 import type { AtomizerMetadata, WebServerFact } from '../../../shared/atomizer/common/atomizer.type.ts';
 import type { TurboJsonDoc } from '../../../shared/turbo/common/turbo-json.type.ts';
 import type { PackageTasks } from '../../../shared/turbo/common/turbo-query.type.ts';
-import type { DoctorFacts } from '../../common/doctor-facts.type.ts';
+import type { DoctorFacts, TurboScan } from '../../common/doctor-facts.type.ts';
 
 export const WEB_SERVER_STUB: WebServerFact = {
   command: 'npm run start',
@@ -54,5 +54,17 @@ export const DOCTOR_FACTS_STUB: DoctorFacts = {
   dependsOn: ['^build'],
   dependencyTasks: [WEB_PACKAGE_TASKS_STUB],
   outsideImports: [],
-  extraInputs: []
+  extraInputs: [],
+  turboQueryFailure: undefined
+};
+
+/** A synced, queryable package. */
+export const TURBO_SCAN_STUB: TurboScan = {
+  atomsFile: '/repo/tools/web-e2e-atoms/turbo.json',
+  isQueryable: true,
+  isStale: false,
+  packageDir: 'apps/web-e2e',
+  packageName: 'web-e2e',
+  root: '/repo',
+  task: 'e2e-ci'
 };

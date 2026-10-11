@@ -15,6 +15,7 @@ type DoctorFindingCode =
   | 'spec-rejected'
   | 'stale-generated'
   | 'test-turbo-json-drift'
+  | 'turbo-query-failed'
   | 'turbo-untested';
 
 export type DoctorFinding = {

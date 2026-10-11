@@ -15,6 +15,7 @@ const ATOMIZER_CONFIG = `${TEST_PACKAGE_DIR}/turbo-atomizer.json`;
 const COVERED_CONFIG = '{ "generatedPackage": "tools/web-e2e-atoms", "extraInputs": ["$TURBO_ROOT$/shared/**"] }\n';
 const TEST_PACKAGE_JSON = `${TEST_PACKAGE_DIR}/package.json`;
 const APP_DEPENDENCY = '"web": "workspace:*"';
+const GENERATED_DIR = 'tools/web-e2e-atoms';
 
 /** Adds `shared/x.ts` at the workspace root and imports it from the home spec. */
 const importSharedFile = async (workspace: FixtureWorkspace): Promise<void> => {
@@ -63,6 +64,16 @@ describe('FEATURE: doctor on a packed consumer', (): void => {
 
       expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 1 });
       expect(doctor.stdout).toContain('  error stale-generated: The generated file tasks are stale (0 added, 1 removed, 0 changed)');
+    });
+
+    it('WHEN the generated package is deleted THEN doctor exits 1 with both the stale-generated and the turbo-query-failed error', async (): Promise<void> => {
+      await workspace.remove(GENERATED_DIR);
+
+      const doctor = await workspace.run('turbo-atomizer doctor');
+
+      expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 1 });
+      expect(doctor.stdout).toContain('  error stale-generated: ');
+      expect(doctor.stdout).toContain('  error turbo-query-failed: ');
     });
 
     it('WHEN a spec imports a root file nothing covers THEN doctor exits 1 with an outside-import error naming both', async (): Promise<void> => {

@@ -35,7 +35,22 @@ export type DoctorFacts = {
   readonly dependencyTasks: PackageTasks[];
   readonly outsideImports: OutsideImport[];
   readonly extraInputs: string[];
+  /** The `turbo query` error message when a query failed (e.g. the generated package was deleted); the turbo facts are then empty. */
+  readonly turboQueryFailure: string | undefined;
 };
+
+/** What doctor queries turbo with for one test package; `packageDir` is posix and relative to `root`. */
+export type TurboScan = {
+  readonly atomsFile: string;
+  readonly isQueryable: boolean;
+  readonly isStale: boolean;
+  readonly packageDir: string;
+  readonly packageName: string;
+  readonly root: string;
+  readonly task: string;
+};
+
+export type TurboFacts = Pick<DoctorFacts, 'dependencyTasks' | 'outsideImports' | 'turboQueryFailure'>;
 
 /** The turbo queries doctor makes, injected so facts are gathered in tests without spawning turbo. */
 export type DoctorDeps = {
