@@ -1,0 +1,43 @@
+packages:
+  - 'packages/*'
+  - 'tools'
+
+catalogs:
+  runtime:
+    jsonc-parser: '^3.3.1'
+    yaml: '^2.9.1'
+    zod: '^4.6.5'
+  peer:
+    '@playwright/test': '>=1.56.0'
+    turbo: '>=2.11.7 <2.12.0'
+  dev:
+    '@nx/devkit': '23.3.0'
+    '@nx/eslint': '23.3.0'
+    '@nx/js': '23.3.0'
+    '@nx/vitest': '23.3.0'
+    '@playwright/test': '1.64.0'
+    '@types/node': '24.19.2'
+    esbuild: '0.28.2'
+    eslint: '10.12.0'
+    jiti: '2.7.0'
+    lint-suite: '2.2.0'
+    nx: '23.3.0'
+    prettier: '3.9.10'
+    turbo: '2.11.7'
+    # TS 6 stays for typescript-eslint, Nx and editors; TS 7 runs typecheck and declaration emit.
+    typescript: '6.0.3'
+    typescript7: 'npm:typescript@7.0.2'
+    # Matches lint-suite 2.2.0's own pin, so one copy is installed.
+    typescript-eslint: '8.69.0'
+    vitest: '5.0.3'
+    yaml: '2.9.1'
+
+catalogMode: strict
+catalogPrune: true
+
+allowBuilds:
+  esbuild: true
+  nx: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - prettier@3.9.10

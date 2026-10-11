@@ -1,0 +1,34 @@
+{
+  "name": "turbo-atomizer",
+  "version": "0.0.0",
+  "description": "One turbo task per Playwright spec file, with a shared web server and merged reports",
+  "keywords": [
+    "turbo",
+    "turborepo",
+    "playwright",
+    "e2e",
+    "cache"
+  ],
+  "license": "MIT",
+  "author": "Artiom Tofan artiomtofancv@gmail.com",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "jsonc-parser": "catalog:runtime",
+    "yaml": "catalog:runtime",
+    "zod": "catalog:runtime"
+  },
+  "peerDependencies": {
+    "@playwright/test": "catalog:peer",
+    "turbo": "catalog:peer"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:dev",
+    "turbo": "catalog:dev"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

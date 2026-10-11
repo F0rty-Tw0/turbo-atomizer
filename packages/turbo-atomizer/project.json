@@ -1,0 +1,12 @@
+{
+  "name": "turbo-atomizer",
+  "sourceRoot": "packages/turbo-atomizer/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands"
+    },
+    "typecheck": {},
+    "lint": {}
+  }
+}

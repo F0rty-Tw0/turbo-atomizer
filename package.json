@@ -1,0 +1,26 @@
+{
+  "name": "turbo-atomizer-workspace",
+  "private": true,
+  "license": "MIT",
+  "author": "Artiom Tofan artiomtofancv@gmail.com",
+  "type": "module",
+  "devDependencies": {
+    "@nx/devkit": "catalog:dev",
+    "@nx/eslint": "catalog:dev",
+    "@nx/js": "catalog:dev",
+    "@nx/vitest": "catalog:dev",
+    "@types/node": "catalog:dev",
+    "esbuild": "catalog:dev",
+    "eslint": "catalog:dev",
+    "jiti": "catalog:dev",
+    "lint-suite": "catalog:dev",
+    "nx": "catalog:dev",
+    "prettier": "catalog:dev",
+    "typescript": "catalog:dev",
+    "typescript-eslint": "catalog:dev",
+    "typescript7": "catalog:dev",
+    "vitest": "catalog:dev",
+    "yaml": "catalog:dev"
+  },
+  "packageManager": "pnpm@12.11.2"
+}
