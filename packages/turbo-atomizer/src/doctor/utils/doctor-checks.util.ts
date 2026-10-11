@@ -95,6 +95,13 @@ const rejectedFinding = (spec: string): DoctorFinding => {
   );
 };
 
+/** Turbo rejects the generated `command` fields without `experimentalTaskCommand`, so no turbo query fact exists to check then. */
+const coverageChecks = (facts: DoctorFacts): DoctorFinding[] => {
+  if (!facts.taskCommandFlagSet) return [];
+
+  return checkCoverage(facts);
+};
+
 const metadataChecks = (facts: DoctorFacts): DoctorFinding[] => {
   if (facts.metadata === undefined) return [];
 
@@ -111,7 +118,7 @@ export const runDoctorChecks = (facts: DoctorFacts): DoctorFinding[] => {
   const versionFindings = peerFindings.map(toVersionFinding);
   const specFindings = facts.rejectedSpecs.map(rejectedFinding);
   const metadataFindings = metadataChecks(facts);
-  const coverageFindings = checkCoverage(facts);
+  const coverageFindings = coverageChecks(facts);
 
   return [
     ...generatedFindings,

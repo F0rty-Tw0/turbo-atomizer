@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { runDoctorChecks } from './doctor-checks.util.ts';
 import type { AtomsDiff } from '../../sync/common/atoms-diff.type.ts';
 import type { DoctorFacts } from '../common/doctor-facts.type.ts';
-import { DOCTOR_FACTS_STUB, DOCTOR_METADATA_STUB, TEST_TURBO_JSON_STUB } from '../test/stubs/doctor-facts.stub.ts';
+import { DOCTOR_FACTS_STUB, DOCTOR_METADATA_STUB, TEST_TURBO_JSON_STUB, WEB_SERVER_STUB } from '../test/stubs/doctor-facts.stub.ts';
 
 describe('FEATURE: doctor checks', (): void => {
   describe('GIVEN a healthy package', (): void => {
@@ -77,6 +77,15 @@ describe('FEATURE: doctor checks', (): void => {
   describe('GIVEN a root turbo.json missing a future flag', (): void => {
     it('WHEN experimentalTaskCommand is missing THEN a root-flag-missing error is returned', (): void => {
       const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, taskCommandFlagSet: false };
+
+      const findings = runDoctorChecks(facts);
+
+      expect(findings).toMatchObject([{ level: 'error', code: 'root-flag-missing' }]);
+    });
+
+    it('WHEN experimentalTaskCommand is missing and turbo could not be queried THEN no coverage error is added', (): void => {
+      const metadata = { ...DOCTOR_METADATA_STUB, webServers: [WEB_SERVER_STUB] };
+      const facts: DoctorFacts = { ...DOCTOR_FACTS_STUB, taskCommandFlagSet: false, metadata, dependencyTasks: [] };
 
       const findings = runDoctorChecks(facts);
 
