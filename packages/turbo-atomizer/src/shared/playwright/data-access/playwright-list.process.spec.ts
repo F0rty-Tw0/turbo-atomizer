@@ -136,4 +136,30 @@ describe('FEATURE: Playwright list process', (): void => {
       LIST_TIMEOUT_MS
     );
   });
+
+  describe('GIVEN a copy of the basic fixture without any test file', (): void => {
+    let copy: FixtureCopy;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+      await rm(join(copy.directory, 'apps/e2e/tests'), { recursive: true });
+    });
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it(
+      'WHEN its specs are listed THEN no file is returned and the metadata is present',
+      async (): Promise<void> => {
+        const copyPackageDir = join(copy.directory, 'apps/e2e');
+
+        const listing = await listSpecs(copyPackageDir, 'playwright.config.ts');
+
+        expect(listing.files).toEqual([]);
+        expect(listing.metadata?.version).toBe(1);
+      },
+      LIST_TIMEOUT_MS
+    );
+  });
 });

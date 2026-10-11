@@ -57,6 +57,7 @@ const readReport = async (reportFile: string, stderr: string): Promise<SpecListi
  * Runs `playwright test --list --reporter=json` in `packageDir` with the describe env set.
  * The report goes to a temp file, not stdout, so a config that prints (dotenv) cannot corrupt it.
  * `metadataOnly` adds an empty `--test-list`, so no spec file is loaded.
+ * `--pass-with-no-tests` keeps a package without specs listable; Playwright exits 1 with "No tests found" otherwise.
  */
 export const listSpecs = async (packageDir: string, configFile: string, options: ListSpecsOptions = {}): Promise<SpecListing> => {
   const tempDir = await mkdtemp(join(tmpdir(), 'turbo-atomizer-list-'));
@@ -64,7 +65,7 @@ export const listSpecs = async (packageDir: string, configFile: string, options:
   const listFile = join(tempDir, 'test-list.txt');
   const bin = resolvePlaywrightBin(packageDir);
   const listArgs = testListArgs(listFile, options.metadataOnly);
-  const args = [bin, 'test', '--list', '--reporter=json', `--config=${configFile}`, ...listArgs];
+  const args = [bin, 'test', '--list', '--reporter=json', '--pass-with-no-tests', `--config=${configFile}`, ...listArgs];
   const extraEnv = options.extraEnv ?? {};
   const env = { ...process.env, [TURBO_ATOMIZER_ENV]: '1', [TURBO_ATOMIZER_DESCRIBE_ENV]: '1', ...extraEnv, [PLAYWRIGHT_JSON_OUTPUT_FILE_ENV]: reportFile };
   const run: ListRun = { args, cwd: packageDir, env };
