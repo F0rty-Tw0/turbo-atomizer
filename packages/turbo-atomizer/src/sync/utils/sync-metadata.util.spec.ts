@@ -36,7 +36,9 @@ describe('FEATURE: sync metadata facts', (): void => {
     });
 
     it('WHEN one is a blob reporter THEN exec adds none', (): void => {
-      const metadata: AtomizerMetadata = { ...ATOMIZER_METADATA_STUB, reporters: [['list', {}], ['blob', {}]] };
+      const listReporter: [string, unknown] = ['list', {}];
+      const blobReporter: [string, unknown] = ['blob', {}];
+      const metadata: AtomizerMetadata = { ...ATOMIZER_METADATA_STUB, reporters: [listReporter, blobReporter] };
 
       const needsBlob = needsBlobReporter(metadata);
 
