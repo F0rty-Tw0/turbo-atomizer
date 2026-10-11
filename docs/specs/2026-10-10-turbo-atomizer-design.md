@@ -283,7 +283,7 @@ Fails (exit 1) on any error, prints warnings otherwise:
 2. Warn when the number of blobs differs from the number of file tasks, counted by the `atomizer:<task>` tag so carriers are excluded (expected in an affected run; the message says so). Zero blobs: warn and exit 0.
 3. Copy each blob into a temp folder as `<slug>.zip`.
 4. Write a temporary merge config next to the Playwright config (`playwright.atomizer-merge.config.mjs`, deleted afterwards) whose `reporter` is the helper's `reporters` with `blob` removed, options intact, and `testDir` matching the original. Writing it in the config dir keeps relative reporter output paths where the user expects them.
-5. Run `playwright merge-reports <temp folder> --config <merge config>` (1 when the merged report has failures, `reportActions.js:58`).
+5. Run `playwright merge-reports <temp folder> --config <merge config>`. Its exit code does not reflect test failures: Playwright 1.64 exits 1 only when a reporter errors (`lib/runner/index.js:8229` returns `failed` only for `multiplexer.hasReporterErrors()`, and `lib/cli/reportActions.js:58` exits with that). So the merge config also loads the package's merge-status reporter (`merge-status-reporter.cjs`, appended after the user's reporters). Its `onEnd` writes the merged `FullResult.status` to `merge-status.json` in the temp folder. That status is `failed` when any blob's run failed (`mergeEndEvents`, `lib/runner/index.js:8418`), which includes a flaky pass in a run with `--fail-on-flaky-tests`. A non-zero merge exit is returned as is. Otherwise the result is 0 for `passed`, and 1 for any other status or a missing status file.
 
 Steps 1–5 run once per test package. The command exits non-zero if any package's merge exits non-zero.
 
