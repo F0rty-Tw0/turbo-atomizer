@@ -298,7 +298,7 @@ Runs only the affected file tasks, because `turbo run e2e-ci --affected` cannot 
 3. None → print `no affected file tasks in <test package name>` and continue (a passing no-op).
 4. Otherwise run, from the workspace root with inherited stdio, `turbo run <task names…> --filter=<test package name> --continue=dependencies-successful` followed by the args after `--`. turbo is run as `process.execPath <bin>`, `<bin>` being `bin.turbo` of `turbo/package.json` resolved from the workspace root. Named tasks get no `--affected`; their dependencies (carriers, `^build`) run or replay as usual.
 
-The command exits with the first non-zero turbo exit code, else 0. A long name list may hit the Windows command-line limit (about 32 K characters, roughly 800 tasks at 40 characters each; inferred, checked with the platform matrix).
+The command exits with the first non-zero turbo exit code, else 0. A long name list may hit the Windows command-line limit (about 32 K characters, roughly 800 tasks at 40 characters each; inferred, not checked: the Windows gate only measures the command line for the six pnpm-basic file tasks).
 
 ## 7. Shared web server
 
