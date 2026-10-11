@@ -140,6 +140,22 @@ Findings:
 - With the §4 shape and the flag on, an edited spec selects nothing, because it is excluded from every task's inputs. A real change would be missed.
 - Any entry through the umbrella or `--all` runs every file task. A subset needs named file tasks (F4).
 
+## Milestone 2 measurements
+
+Per-file start-up cost from `startup-cost.spec.ts` (plan Task 12, step 4). Three local runs of `vitest run --config packages/turbo-atomizer-e2e/vitest.e2e.config.ts src/startup-cost.spec.ts` at commit `512a35e`, right after `nx build turbo-atomizer`. Linux 7.0.0, Intel i7-13700H (20 threads), 30 GB RAM, node v24.20.0, turbo 2.11.7, @playwright/test 1.64.0 with the Chromium headless shell. Another agent was building on the same machine (load average 2–3).
+
+Workspace: the pnpm-basic fixture after `init` and `sync`. It has 6 specs, a setup project and one web server, so `turbo run e2e-ci` runs 13 tasks: 6 file tasks, 6 carriers and `web#build`. Turbo's default concurrency (10) runs all 6 file tasks at once. "Run" is the wall time of the whole `turbo run e2e-ci --summarize`. "Mean" is the mean `execution.endTime - execution.startTime` of the file tasks in the run summary. Each file task starts Playwright, runs the setup project, launches Chromium and runs its 1 or 2 tests.
+
+| Run | Cold: file tasks | Cold: run | Cold: mean per file task | Cached: run | Cached: mean per file task |
+|---|---|---|---|---|---|
+| 1 | 6 | 2106 ms | 1862 ms | 44 ms | 1 ms |
+| 2 | 6 | 2088 ms | 1864 ms | 42 ms | 0 ms |
+| 3 | 6 | 2071 ms | 1864 ms | 45 ms | 1 ms |
+
+- A cold file task costs about 1.86 s, and almost all of it is fixed start-up cost: the tests themselves take 50–120 ms each and the setup test 12–27 ms (Playwright's per-test times in the e2e output). With 6 tasks in parallel, the whole cold run takes about 2.1 s, and the web server starts once.
+- A fully cached rerun of the 13 tasks takes 42–45 ms, with no server start.
+- These are local numbers on a fast machine, from a single small suite. They say nothing about CI runners or about the 200-file consumer suite.
+
 ## Other observations
 
 - turbo 2.11.7 writes a managed `AGENTS.md` at the workspace root when it detects an AI agent (opt out: `"agentGuidance": false` in the root `turbo.json`). The e2e fixtures (Task 12) should set it, or the fixture tree changes on the first run.
