@@ -134,5 +134,14 @@ describe('FEATURE: init preflight', (): void => {
 
       await expect(planning).rejects.toThrow(/holds @acme\/other/);
     });
+
+    it('WHEN a negated workspace glob excludes the generated dir THEN it rejects with InitConflictException naming the glob', async (): Promise<void> => {
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n  - 'tools/*'\n  - '!tools/web-e2e-atoms'\n");
+
+      const planning = planInit(optionsFor(packageDir), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('"!tools/web-e2e-atoms"');
+    });
   });
 });

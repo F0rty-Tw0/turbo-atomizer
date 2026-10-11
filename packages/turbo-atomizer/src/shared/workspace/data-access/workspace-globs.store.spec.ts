@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ensureWorkspaceGlob, readWorkspaceGlobs } from './workspace-globs.store.ts';
+import { ensureWorkspaceGlob, findExcludingGlob, readWorkspaceGlobs } from './workspace-globs.store.ts';
 import type { FixtureCopy } from '../../../test/common/fixture-copy.type.ts';
 import { copyFixture, fixtureDirectory } from '../../../test/utils/fixture-copy.spec.util.ts';
 
@@ -73,6 +73,40 @@ describe('FEATURE: workspace globs store', (): void => {
       const changed = await ensureWorkspaceGlob(copy.directory, 'pnpm', 'tools/web-e2e-atoms');
 
       expect(changed).toBe(false);
+    });
+
+    it('WHEN the excluding glob of a dir the negation misses is looked up THEN none is found', async (): Promise<void> => {
+      const excluding = await findExcludingGlob(copy.directory, 'tools/web-e2e-atoms');
+
+      expect(excluding).toBeUndefined();
+    });
+  });
+
+  describe('GIVEN a pnpm-workspace.yaml whose negation excludes the generated dir', (): void => {
+    beforeEach(async (): Promise<void> => {
+      copy = await copyFixture('init-pnpm');
+
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'tools/*'\n  - '!tools/web-e2e-atoms'\n");
+    });
+
+    it('WHEN the excluding glob is looked up THEN the negation is returned', async (): Promise<void> => {
+      const excluding = await findExcludingGlob(copy.directory, 'tools/web-e2e-atoms');
+
+      expect(excluding).toBe('!tools/web-e2e-atoms');
+    });
+  });
+
+  describe('GIVEN a pnpm-workspace.yaml with only a negation', (): void => {
+    beforeEach(async (): Promise<void> => {
+      copy = await copyFixture('init-pnpm');
+
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - '!apps/legacy'\n");
+    });
+
+    it('WHEN a dir is ensured THEN the negation does not count as covering it and a change is reported', async (): Promise<void> => {
+      const changed = await ensureWorkspaceGlob(copy.directory, 'pnpm', 'tools/web-e2e-atoms');
+
+      expect(changed).toBe(true);
     });
   });
 

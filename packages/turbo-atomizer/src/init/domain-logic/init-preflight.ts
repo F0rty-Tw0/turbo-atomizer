@@ -7,10 +7,12 @@ import { loadAtomizerConfig } from '../../shared/config/domain-logic/atomizer-co
 import { readTurboJson } from '../../shared/turbo/data-access/turbo-json.store.ts';
 import { findWorkspaceRoot } from '../../shared/turbo/data-access/workspace-root.store.ts';
 import { PeerVersionException } from '../../shared/workspace/common/peer-version.exception.ts';
-import type { PeerVersionFinding } from '../../shared/workspace/common/workspace.type.ts';
+import { PNPM_WORKSPACE_FILE } from '../../shared/workspace/common/workspace.const.ts';
+import type { PackageManager, PeerVersionFinding } from '../../shared/workspace/common/workspace.type.ts';
 import { detectPackageManager } from '../../shared/workspace/data-access/package-manager.store.ts';
 import { readPackageName } from '../../shared/workspace/data-access/package-name.store.ts';
 import { hasPackageScript } from '../../shared/workspace/data-access/package-scripts.store.ts';
+import { findExcludingGlob } from '../../shared/workspace/data-access/workspace-globs.store.ts';
 import { checkPeerVersions } from '../../shared/workspace/utils/peer-versions.util.ts';
 import { InitConflictException } from '../common/init-conflict.exception.ts';
 import type { GeneratedPackage, InitOptions, InitPlan, PeerVersionsReader, TurboJsonPlan } from '../common/init.type.ts';
@@ -90,6 +92,20 @@ const requireOwnGeneratedDir = async (root: string, generated: GeneratedPackage)
   );
 };
 
+/** Step 6 would add the dir after the `!` glob, and the generated package would silently stay out of the workspace. */
+const requireUnexcludedGeneratedDir = async (root: string, pm: PackageManager, generated: GeneratedPackage): Promise<void> => {
+  const excluding = await findExcludingGlob(root, generated.dir);
+
+  if (excluding === undefined) return;
+
+  const globsFile = pm === 'pnpm' ? PNPM_WORKSPACE_FILE : 'package.json';
+
+  throw new InitConflictException(
+    join(root, globsFile),
+    `excludes ${generated.dir} with "${excluding}", so the generated package would not be a workspace package; remove that glob or pass --generated-dir.`
+  );
+};
+
 const planTurboJson = async (packageDir: string, generated: GeneratedPackage, task: string): Promise<TurboJsonPlan> => {
   const existing = await readTurboJson(packageDir);
   const hasScript = await hasPackageScript(packageDir, task);
@@ -100,7 +116,7 @@ const planTurboJson = async (packageDir: string, generated: GeneratedPackage, ta
   return plan;
 };
 
-/** Runs every init check that can fail before the first write (spec §6.1 steps 1, 2, 4, 8), so a failure leaves the workspace untouched. */
+/** Runs every init check that can fail before the first write (spec §6.1 steps 1, 2, 4, 6, 8), so a failure leaves the workspace untouched. */
 export const planInit = async (options: InitOptions, readVersions: PeerVersionsReader): Promise<InitPlan> => {
   const packageDir = resolve(options.packageDir);
   const root = await findWorkspaceRoot(packageDir);
@@ -111,6 +127,7 @@ export const planInit = async (options: InitOptions, readVersions: PeerVersionsR
   const generated = resolveGenerated(testPackage, loaded, options.generatedDir);
 
   await requireOwnGeneratedDir(root, generated);
+  await requireUnexcludedGeneratedDir(root, pm, generated);
 
   const turboJsonPlan = await planTurboJson(packageDir, generated, loaded.config.task);
   const plan: InitPlan = {

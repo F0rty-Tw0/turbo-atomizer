@@ -53,6 +53,21 @@ const coversDir = (glob: string, dir: string): boolean => {
   return matchesGlob(dir, normalizeGlob(glob));
 };
 
+const excludesDir = (glob: string, dir: string): boolean => {
+  const isNegation = glob.startsWith('!');
+
+  if (!isNegation) return false;
+
+  return matchesGlob(dir, normalizeGlob(glob.slice(1)));
+};
+
+/** Returns the `!` glob that excludes `dir` (posix, relative to the root) from the workspace, if any. */
+export const findExcludingGlob = async (root: string, dir: string): Promise<string | undefined> => {
+  const globs = await readWorkspaceGlobs(root);
+
+  return globs.find((glob) => excludesDir(glob, dir));
+};
+
 const withWorkspaceGlob = (text: string, dir: string): string => {
   const document = parseDocument(text);
   const packages = document.get('packages');
