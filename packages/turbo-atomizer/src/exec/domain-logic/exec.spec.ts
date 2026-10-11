@@ -30,7 +30,7 @@ type ExecProbe = {
   readonly calls: string[][];
 };
 
-const execProbe = (countReporterPath: string): ExecProbe => {
+const execProbe = (countReporterPath: string, atomizerArgs?: string): ExecProbe => {
   const calls: string[][] = [];
 
   const release = (): void => {
@@ -45,7 +45,7 @@ const execProbe = (countReporterPath: string): ExecProbe => {
     return Promise.resolve(lease);
   };
 
-  const deps: ExecDeps = { ensureServer, countReporterPath };
+  const deps: ExecDeps = { ensureServer, countReporterPath, atomizerArgs };
   const probe: ExecProbe = { deps, calls };
 
   return probe;
@@ -168,6 +168,18 @@ describe('FEATURE: exec', (): void => {
       },
       RUN_TIMEOUT_MS
     );
+
+    it(
+      'WHEN TURBO_ATOMIZER_ARGS holds --grep THEN it exits 0',
+      async (): Promise<void> => {
+        const probe = execProbe(COUNT_REPORTER_PATH, '--grep nomatch');
+
+        const exitCode = await runExec(staleArgv, packageDir, probe.deps);
+
+        expect(exitCode).toBe(0);
+      },
+      RUN_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a counting reporter that writes no count file', (): void => {
@@ -201,6 +213,19 @@ describe('FEATURE: exec', (): void => {
       },
       RUN_TIMEOUT_MS
     );
+  });
+
+  describe('GIVEN TURBO_ATOMIZER_ARGS that is not a JSON array of strings', (): void => {
+    it('WHEN exec runs THEN it exits 1 naming the variable, before the server', async (): Promise<void> => {
+      const probe = execProbe(COUNT_REPORTER_PATH, '["--workers", 2]');
+
+      const exitCode = await runExec([...A_ARGV, CONFIG_ARG], packageDir, probe.deps);
+      const stderr = stderrChunks.join('');
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('TURBO_ATOMIZER_ARGS is not a JSON array of strings');
+      expect(probe.calls).toEqual([]);
+    });
   });
 
   describe('GIVEN a task path that does not exist', (): void => {

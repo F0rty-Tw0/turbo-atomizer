@@ -1,5 +1,6 @@
 import { constants } from 'node:os';
 
+import { TURBO_ATOMIZER_ARGS_ENV } from '../../shared/atomizer/common/atomizer.const.ts';
 import { findPlaywrightConfig } from '../../shared/config/data-access/atomizer-config.store.ts';
 import { toAtomSlug } from '../../sync/utils/atom-slug.util.ts';
 import type { ExecArgs, ExecDeps, PlaywrightTestRun, SlugPaths } from '../common/exec.type.ts';
@@ -7,6 +8,7 @@ import { readCountFile } from '../data-access/count-file.store.ts';
 import { packageFileExists } from '../data-access/package-file.store.ts';
 import { runPlaywrightTest } from '../data-access/playwright-test.process.ts';
 import { resetSlugDir, writeTestList } from '../data-access/slug-dir.store.ts';
+import { parseAtomizerArgs } from '../utils/atomizer-args.util.ts';
 import { parseExecArgv } from '../utils/exec-argv.util.ts';
 import { toExitCode } from '../utils/exit-code.util.ts';
 import { toPlaywrightTestArgs, toPlaywrightTestEnv } from '../utils/playwright-test-run.util.ts';
@@ -59,10 +61,13 @@ const guardZeroTests = async (run: SlugRun): Promise<number> => {
 
 /** Spec §6.3: runs one spec file's Playwright run in the test package `cwd` and returns the exit code. */
 export const runExec = async (argv: string[], cwd: string, deps: ExecDeps): Promise<number> => {
-  const execArgs = parseExecArgv(argv, []);
+  const envArgs = parseAtomizerArgs(deps.atomizerArgs);
+  const execArgs = parseExecArgv(argv, envArgs ?? []);
   const configFile = findConfigFile(cwd, execArgs);
 
   if (configFile === undefined) return failExec(`no Playwright config in ${cwd}; run from the test package`);
+
+  if (envArgs === undefined) return failExec(`${TURBO_ATOMIZER_ARGS_ENV} is not a JSON array of strings: ${String(deps.atomizerArgs)}`);
 
   const hasTaskFile = packageFileExists(cwd, execArgs.taskPath);
 

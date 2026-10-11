@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 
+import { getAtomizerEnv } from './config/atomizer-env.schema.ts';
 import type { ExecDeps } from './exec/common/exec.type.ts';
 import { runExec } from './exec/domain-logic/exec.ts';
 import type { ServerLease } from './shared/server/common/server-lease.type.ts';
@@ -17,6 +18,11 @@ const failExec = (error: unknown): void => {
   process.exitCode = 1;
 };
 
-const deps: ExecDeps = { ensureServer, countReporterPath: join(__dirname, 'count-reporter.cjs') };
+const startExec = async (): Promise<number> => {
+  const env = getAtomizerEnv();
+  const deps: ExecDeps = { ensureServer, countReporterPath: join(__dirname, 'count-reporter.cjs'), atomizerArgs: env.args };
 
-runExec(process.argv.slice(1), process.cwd(), deps).then(setExitCode, failExec);
+  return runExec(process.argv.slice(1), process.cwd(), deps);
+};
+
+startExec().then(setExitCode, failExec);

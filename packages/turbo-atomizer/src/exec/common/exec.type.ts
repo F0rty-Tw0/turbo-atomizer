@@ -13,6 +13,8 @@ export type ExecArgs = {
 export type ExecDeps = {
   readonly ensureServer: (packageDir: string, configFile: string) => Promise<ServerLease>;
   readonly countReporterPath: string;
+  /** Raw `TURBO_ATOMIZER_ARGS`; `undefined` when unset. */
+  readonly atomizerArgs: string | undefined;
 };
 
 export type SelectedCount = {
