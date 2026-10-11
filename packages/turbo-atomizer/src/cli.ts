@@ -5,6 +5,7 @@ import { affectedHandler } from './affected/feature/affected.handler.ts';
 import type { CliCommand } from './cli/common/cli.type.ts';
 import { parseCliArgs } from './cli/utils/cli-args.util.ts';
 import { getCliVersion } from './config/build-info.ts';
+import { doctorHandler } from './doctor/feature/doctor.handler.ts';
 import { initHandler } from './init/feature/init.handler.ts';
 import { resolvePackageTargets } from './shared/workspace/domain-logic/package-targets.ts';
 import { syncHandler } from './sync/feature/sync.handler.ts';
@@ -64,6 +65,8 @@ const runCommand = async (command: CliCommand): Promise<number> => {
     }
 
     case 'doctor':
+      return runForTargets(command.package, doctorHandler);
+
     case 'merge-reports':
       process.stderr.write(`turbo-atomizer: ${command.command} is not available yet\n`);
 

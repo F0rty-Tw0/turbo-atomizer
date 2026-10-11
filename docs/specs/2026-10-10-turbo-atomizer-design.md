@@ -270,8 +270,9 @@ Fails (exit 1) on any error, prints warnings otherwise:
 - Warning: root future flag `affectedUsingTaskInputs` missing; `turbo-atomizer affected` then runs every file task of an affected package.
 - Error: a spec not matched by `specGlobs`, or outside the package root.
 - Error: a web server entry with neither `url` nor `port` (it cannot be shared; every file run would start its own copy, `runner/index.js:859`).
-- Error: the config has a web server and no workspace dependency of the test package has a task matched by the configured `dependsOn` (checked with `turbo query`); the message suggests adding a build task or `extraInputs`.
-- Error: a spec whose imports (from `turbo query` file dependencies) reach a file outside the package that is neither in a workspace dependency nor covered by `extraInputs`.
+- Error: the config has a web server, no workspace dependency of the test package has a task matched by the configured `dependsOn` (checked with `turbo query`), and no non-negated `extraInputs` entry reaches outside the package; the message suggests adding a build task or `extraInputs`.
+- Error: a spec whose imports (from `turbo query` file dependencies) reach a file outside the package that is neither in a workspace dependency that has a task matched by `dependsOn` nor covered by `extraInputs`.
+- Error: a `turbo query` fails (e.g. the generated package was deleted); the two checks above are skipped and every other finding still prints.
 - Warning: setup projects present; they run once per file.
 - Warning: custom `snapshotPathTemplate` or `snapshotDir`; snapshots are a shared input.
 - Warning: turbo outside the tested range.
