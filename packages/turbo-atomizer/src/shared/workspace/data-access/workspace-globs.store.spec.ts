@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { readPackageJsonWorkspaces } from './root-package-json.store.ts';
 import { ensureWorkspaceGlob, findExcludingGlob, readWorkspaceGlobs } from './workspace-globs.store.ts';
 import type { FixtureCopy } from '../../../test/common/fixture-copy.type.ts';
 import { copyFixture, fixtureDirectory } from '../../../test/utils/fixture-copy.spec.util.ts';
@@ -76,7 +77,7 @@ describe('FEATURE: workspace globs store', (): void => {
     });
 
     it('WHEN the excluding glob of a dir the negation misses is looked up THEN none is found', async (): Promise<void> => {
-      const excluding = await findExcludingGlob(copy.directory, 'tools/web-e2e-atoms');
+      const excluding = await findExcludingGlob(copy.directory, 'pnpm', 'tools/web-e2e-atoms');
 
       expect(excluding).toBeUndefined();
     });
@@ -90,7 +91,7 @@ describe('FEATURE: workspace globs store', (): void => {
     });
 
     it('WHEN the excluding glob is looked up THEN the negation is returned', async (): Promise<void> => {
-      const excluding = await findExcludingGlob(copy.directory, 'tools/web-e2e-atoms');
+      const excluding = await findExcludingGlob(copy.directory, 'pnpm', 'tools/web-e2e-atoms');
 
       expect(excluding).toBe('!tools/web-e2e-atoms');
     });
@@ -173,6 +174,52 @@ describe('FEATURE: workspace globs store', (): void => {
       const changed = await ensureWorkspaceGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
 
       expect(changed).toBe(false);
+    });
+  });
+
+  describe('GIVEN an npm workspace with a stray pnpm-workspace.yaml that does not cover the dir', (): void => {
+    beforeEach(async (): Promise<void> => {
+      copy = await copyFixture('init-npm');
+
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n");
+    });
+
+    it('WHEN the same dir is ensured twice THEN the second call reports no change', async (): Promise<void> => {
+      await ensureWorkspaceGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
+
+      const changed = await ensureWorkspaceGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
+
+      expect(changed).toBe(false);
+    });
+  });
+
+  describe('GIVEN an npm workspace with a stray pnpm-workspace.yaml that covers the dir', (): void => {
+    beforeEach(async (): Promise<void> => {
+      copy = await copyFixture('init-npm');
+
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'tools/*'\n");
+    });
+
+    it('WHEN the dir is ensured THEN it is appended to package.json workspaces', async (): Promise<void> => {
+      await ensureWorkspaceGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
+
+      const workspaces = await readPackageJsonWorkspaces(copy.directory);
+
+      expect(workspaces).toEqual(['apps/*', 'tools/web-e2e-atoms']);
+    });
+  });
+
+  describe('GIVEN an npm workspace with a stray pnpm-workspace.yaml that negates the dir', (): void => {
+    beforeEach(async (): Promise<void> => {
+      copy = await copyFixture('init-npm');
+
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - '!tools/web-e2e-atoms'\n");
+    });
+
+    it('WHEN the excluding glob is looked up THEN package.json workspaces are read and none is found', async (): Promise<void> => {
+      const excluding = await findExcludingGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
+
+      expect(excluding).toBeUndefined();
     });
   });
 });

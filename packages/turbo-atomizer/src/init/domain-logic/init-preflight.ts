@@ -111,7 +111,7 @@ const requireOwnGeneratedDir = async (root: string, generated: GeneratedPackage)
 
 /** Step 6 would add the dir after the `!` glob, and the generated package would silently stay out of the workspace. */
 const requireUnexcludedGeneratedDir = async (root: string, pm: PackageManager, generated: GeneratedPackage): Promise<void> => {
-  const excluding = await findExcludingGlob(root, generated.dir);
+  const excluding = await findExcludingGlob(root, pm, generated.dir);
 
   if (excluding === undefined) return;
 

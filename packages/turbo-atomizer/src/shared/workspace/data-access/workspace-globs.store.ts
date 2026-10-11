@@ -22,7 +22,7 @@ const readTextOrEmpty = async (filePath: string): Promise<string> => {
 };
 
 const readPnpmWorkspaceGlobs = async (filePath: string): Promise<string[]> => {
-  const text = await readFile(filePath, 'utf8');
+  const text = await readTextOrEmpty(filePath);
   const raw: unknown = parseDocument(text).toJS();
   const workspace = pnpmWorkspaceSchema.parse(raw);
 
@@ -35,6 +35,13 @@ export const readWorkspaceGlobs = async (root: string): Promise<string[]> => {
   const hasPnpmWorkspace = existsSync(filePath);
 
   if (hasPnpmWorkspace) return readPnpmWorkspaceGlobs(filePath);
+
+  return readPackageJsonWorkspaces(root);
+};
+
+/** The globs `pm` reads and `ensureWorkspaceGlob` writes, so a stray file of the other package manager is ignored. */
+const readPackageManagerGlobs = async (root: string, pm: PackageManager): Promise<string[]> => {
+  if (pm === 'pnpm') return readPnpmWorkspaceGlobs(join(root, PNPM_WORKSPACE_FILE));
 
   return readPackageJsonWorkspaces(root);
 };
@@ -62,8 +69,8 @@ const excludesDir = (glob: string, dir: string): boolean => {
 };
 
 /** Returns the `!` glob that excludes `dir` (posix, relative to the root) from the workspace, if any. */
-export const findExcludingGlob = async (root: string, dir: string): Promise<string | undefined> => {
-  const globs = await readWorkspaceGlobs(root);
+export const findExcludingGlob = async (root: string, pm: PackageManager, dir: string): Promise<string | undefined> => {
+  const globs = await readPackageManagerGlobs(root, pm);
 
   return globs.find((glob) => excludesDir(glob, dir));
 };
@@ -100,7 +107,7 @@ const addPnpmWorkspaceGlob = async (root: string, dir: string): Promise<void> =>
 
 /** Adds `dir` (posix, relative to the root) to the workspace globs unless a glob already covers it (init step 6). */
 export const ensureWorkspaceGlob = async (root: string, pm: PackageManager, dir: string): Promise<boolean> => {
-  const globs = await readWorkspaceGlobs(root);
+  const globs = await readPackageManagerGlobs(root, pm);
   const isCovered = globs.some((glob) => coversDir(glob, dir));
 
   if (isCovered) return false;
