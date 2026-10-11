@@ -11,6 +11,7 @@ export type FixtureCase = {
 /** The `ATOMIZER_E2E_*` settings of this run; undefined means unset. */
 export type E2eEnv = {
   readonly pm: PackageManager | undefined;
+  readonly turboVersion: string | undefined;
 };
 
 export type CommandEnv = Record<string, string>;

@@ -2,6 +2,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { e2eEnv } from './e2e-env.spec.util.ts';
 import { fillPorts } from './fixture-ports.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
 import { quotedPath, runChecked, runCommand } from './workspace-command.spec.util.ts';
@@ -37,12 +38,17 @@ const packAtomizer = async (root: string): Promise<string> => {
   return packed.filename;
 };
 
+/** Adds the packed package as a root devDependency, and swaps in `ATOMIZER_E2E_TURBO_VERSION` for turbo when it is set. */
 const addAtomizerDependency = async (root: string, tarball: string): Promise<void> => {
   const manifestPath = join(root, 'package.json');
   const text = await readFile(manifestPath, 'utf8');
   const raw: unknown = JSON.parse(text);
   const manifest = rootManifestSchema.parse(raw);
-  const devDependencies = { ...manifest.devDependencies, 'turbo-atomizer': `file:${tarball}` };
+  const { turboVersion } = e2eEnv();
+  const devDependencies: Record<string, string> = { ...manifest.devDependencies, 'turbo-atomizer': `file:${tarball}` };
+
+  if (turboVersion !== undefined) devDependencies['turbo'] = turboVersion;
+
   const updated = { ...manifest, devDependencies };
 
   await writeFile(manifestPath, `${JSON.stringify(updated, null, 2)}\n`);

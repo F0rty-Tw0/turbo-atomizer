@@ -42,6 +42,9 @@ export const TURBO_SCM_BASE_ENV = 'TURBO_SCM_BASE';
 /** Runs only the cases of one package manager (`npm` or `pnpm`); unset runs both. The CI matrix sets it per leg. */
 export const E2E_PM_ENV = 'ATOMIZER_E2E_PM';
 
+/** A turbo version or dist-tag that replaces every fixture's pinned turbo; the non-blocking `turbo@latest` CI job sets it. */
+export const E2E_TURBO_VERSION_ENV = 'ATOMIZER_E2E_TURBO_VERSION';
+
 const GIT_IDENTITY = 'turbo-atomizer-e2e';
 
 const GIT_EMAIL = 'e2e@turbo-atomizer.invalid';

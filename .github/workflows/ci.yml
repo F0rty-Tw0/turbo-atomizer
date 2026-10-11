@@ -41,9 +41,48 @@ jobs:
         run: pnpm exec nx run-many -t test
 
   e2e:
-    runs-on: ubuntu-latest
+    name: e2e (${{ matrix.os }}, ${{ matrix.pm }})
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        pm: [pnpm, npm]
+    env:
+      # Runs only the fixture cases of this package manager
+      ATOMIZER_E2E_PM: ${{ matrix.pm }}
+
+    steps:
+      # SHA = actions/checkout@v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # SHA = pnpm/setup@v2.1.0
+      - name: Setup toolchain and install dependencies
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+
+      # The fixtures pin the same @playwright/test as the package, so they share this browser build
+      - name: Install Chromium
+        run: pnpm --filter turbo-atomizer exec playwright install --with-deps --only-shell chromium
+
+      - name: E2E
+        run: pnpm exec nx e2e turbo-atomizer-e2e
+
+  e2e-turbo-latest:
+    name: e2e (turbo@latest, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      # Replaces every fixture's pinned turbo, to catch a turbo release that breaks the generated tasks early
+      ATOMIZER_E2E_TURBO_VERSION: latest
 
     steps:
       # SHA = actions/checkout@v7.0.1
