@@ -46,6 +46,8 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
+          # Keeps the token out of .git/config, so install, build and publish cannot read it
+          persist-credentials: false
 
       - name: Restore latest release tag for retry
         if: inputs.version == 'publish-current'
@@ -63,7 +65,8 @@ jobs:
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
         with:
           runtime: node@24.20.0
-          cache: true
+          # No shared cache in a job that holds NPM_TOKEN, where a poisoned entry would run with it
+          cache: false
           require-lockfile: true
 
       - name: Configure Git
@@ -85,8 +88,13 @@ jobs:
       - name: Push versioned source and tag
         if: inputs.version != 'publish-current'
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: v${{ steps.prepare.outputs.version }}
-        run: git push --atomic origin HEAD:refs/heads/master "refs/tags/$RELEASE_TAG"
+        run: |
+          auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --atomic origin HEAD:refs/heads/master "refs/tags/$RELEASE_TAG"
 
       - name: Configure npm authentication
         run: printf '%s\n' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$HOME/.npmrc"
