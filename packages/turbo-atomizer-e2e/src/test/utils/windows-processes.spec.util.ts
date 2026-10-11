@@ -10,7 +10,10 @@ const execFileAsync = promisify(execFile);
 const CREATION_DATE =
   "@{n='CreationDate';e={if ($_.CreationDate) {([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()} else {0}}}";
 
-const LIST_SCRIPT = `ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,${CREATION_DATE})`;
+const LIST = `ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,${CREATION_DATE})`;
+
+// powershell writes stdout in the console code page, which garbles a non-ASCII command line; UTF-8 matches execFile's default decode
+const LIST_SCRIPT = `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::Out.Write((${LIST}))`;
 
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 
