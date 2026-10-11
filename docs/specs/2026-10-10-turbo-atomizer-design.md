@@ -323,7 +323,7 @@ Protocol: newline-delimited JSON from supervisor to client: `{"state":"starting"
 2. No servers → `ready` immediately. A server with neither `url` nor `port` → `failed` (it cannot be shared).
 3. For each server: probe first. If it already answers, reuse it and never stop it (Playwright's `reuseExistingServer` semantics). Otherwise spawn `command` with `shell: true`, `cwd` from metadata, env `{ BROWSER: 'none', FORCE_COLOR: '1', DEBUG_COLORS: '1', ...serverEnv, ...entry.env }` (Playwright's defaults, `runner/index.js:824-828`), and on POSIX `detached: true` so it leads its own process group. Watch `wait.stdout` / `wait.stderr` patterns; capture their named groups for `ready.env`.
 4. Probe until ready or `timeout` (default 60 s), with Playwright/Nx semantics: `port` → TCP connect to 127.0.0.1 and ::1; `url` → GET, status 200–403 is ready, a 404 on `/` retries `/index.html`, follow redirects, honour `ignoreHTTPSErrors`; retry after 100, 250, 500 ms, then every 1 s.
-5. On a spawned server's early exit or timeout → `failed` with the last 50 log lines. The supervisor keeps answering `failed` for `server.idleMs`, so concurrent execs fail the same way, then exits; the next run tries again.
+5. On a spawned server's early exit or timeout → `failed` with the last 50 log lines. The supervisor stops the servers it started and keeps answering `failed` until they have exited and `server.idleMs` more has passed, so concurrent execs fail the same way, then exits; the next run tries again. A spawned server that exits after `ready` fails the supervisor the same way. exec retries a connection the supervisor closes before answering at most 3 times, backing off 100 then 250 ms.
 
 **Stop.**
 

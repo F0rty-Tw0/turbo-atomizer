@@ -97,6 +97,8 @@ export const ensureServer = async (packageDir: string, configFile: string, super
   await preparePrivateDir(socketPath);
 
   for (let attempt = 0; attempt < LEASE_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) await sleep(nextProbeDelay(attempt - 1));
+
     const socket = await connectSupervisor(socketPath, root, configFile, supervisorPath);
     const lease = await awaitAnswer(socket);
 

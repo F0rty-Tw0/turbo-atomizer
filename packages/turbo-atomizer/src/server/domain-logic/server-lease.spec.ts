@@ -1,5 +1,8 @@
+import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import type { Server, Socket } from 'node:net';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -11,6 +14,7 @@ import type { ServerLease } from '../../shared/server/common/server-lease.type.t
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
+import { LEASE_ATTEMPTS, PROBE_BACKOFF_MS } from '../common/server.const.ts';
 import type { StaticServer } from '../test/common/server.type.ts';
 import { createStaleSocket } from '../test/utils/stale-socket.spec.util.ts';
 import { exitedPid, freePort, isAlive, startStaticServer, waitUntil } from '../test/utils/static-server.spec.util.ts';
@@ -23,6 +27,10 @@ const IDLE_MS = 500;
 const STOP_GRACE_MS = 6000;
 const CASE_TIMEOUT_MS = 30_000;
 const CONCURRENT_EXECS = 10;
+
+const MIN_LEASE_BACKOFF_MS = PROBE_BACKOFF_MS.slice(0, LEASE_ATTEMPTS - 1).reduce((sum: number, delay: number): number => sum + delay, 0);
+
+const spanOf = (times: number[]): number => Math.max(...times) - Math.min(...times);
 
 const lease = async (packageDir: string): Promise<ServerLease> => ensureServer(packageDir, CONFIG_FILE, SUPERVISOR_PATH);
 
@@ -180,6 +188,33 @@ describe('FEATURE: server lease', (): void => {
 
       await expect(request).rejects.toThrow('with mode 0700');
       expect(existsSync(join(copy.directory, '.atomizer/server.log'))).toBe(false);
+    }, CASE_TIMEOUT_MS);
+  });
+
+  describe('GIVEN a supervisor that hangs up on every connection', (): void => {
+    let hangingUp: Server;
+    let connectedAt: number[];
+
+    beforeEach(async (): Promise<void> => {
+      connectedAt = [];
+      hangingUp = createServer((socket: Socket): void => {
+        connectedAt.push(Date.now());
+        socket.destroy();
+      });
+      hangingUp.listen(socketPath);
+      await once(hangingUp, 'listening');
+    });
+
+    afterEach(async (): Promise<void> => {
+      hangingUp.close();
+      await once(hangingUp, 'close');
+    });
+
+    it('WHEN an exec leases the server THEN it backs off between its attempts before rejecting', async (): Promise<void> => {
+      await expect(lease(copy.directory)).rejects.toThrow('closed the connection before answering');
+
+      expect(connectedAt).toHaveLength(LEASE_ATTEMPTS);
+      expect(spanOf(connectedAt)).toBeGreaterThanOrEqual(MIN_LEASE_BACKOFF_MS);
     }, CASE_TIMEOUT_MS);
   });
 });
