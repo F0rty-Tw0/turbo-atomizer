@@ -140,7 +140,7 @@ Generation rules, so output is byte-identical for identical inputs:
 - Tasks sorted by task name in UTF-16 code-unit order (plain `<` comparison, no locale); `<task>--all` last. File tasks (`<task>--…`) therefore precede carriers (`<task>-src--…`).
 - Task keys in this order: `command`, `dependsOn`, `inputs`, `outputs`, `env`, `passThroughEnv`, `cache`, `tags`.
 - Empty arrays are omitted; `cache` is emitted only when `false`.
-- Two-space JSON, trailing newline.
+- Two-space JSON, trailing newline: exactly `JSON.stringify(value, null, 2) + '\n'`, so every array element sits on its own line. The example above keeps short arrays on one line for reading; its content and key order are exact, its whitespace is not.
 - File task `dependsOn`: the configured `dependsOn`, then its carrier's name.
 - File task `inputs`: `$TURBO_DEFAULT$`, the negated `specGlobs`, the negated `snapshotGlobs`, the config-file exclusion, then `extraInputs`. The own spec is never listed (it would be negated anyway); the carrier brings it in.
 - File task `env`: the configured `env`, then `uncached.commitEnv` (live specs only), then `TURBO_ATOMIZER_ARGS`; a repeated name keeps its first position.
