@@ -47,9 +47,9 @@ describe('FEATURE: supervisor state', () => {
       expect(transition).toEqual(expected);
     });
 
-    it('WHEN a server fails THEN it broadcasts failed, stops the servers and schedules its exit', () => {
+    it('WHEN a server fails THEN it broadcasts failed and stops the servers, without scheduling its exit yet', () => {
       const next: SupervisorState = { phase: 'failed', leases: 0, message: FAILED_MESSAGE_STUB };
-      const expected: SupervisorTransition = { state: next, effects: [broadcastFailed, stopServers, scheduleIdle] };
+      const expected: SupervisorTransition = { state: next, effects: [broadcastFailed, cancelIdle, stopServers] };
 
       const transition = reduceSupervisor(state, serverFailed);
 
@@ -116,6 +116,12 @@ describe('FEATURE: supervisor state', () => {
       const transition = reduceSupervisor(state, serverFailed);
 
       expect(transition.state.phase).toBe('failed');
+    });
+
+    it('WHEN a server fails THEN a pending idle stop is cancelled before the servers are stopped', () => {
+      const transition = reduceSupervisor(state, serverFailed);
+
+      expect(transition.effects).toEqual([broadcastFailed, cancelIdle, stopServers]);
     });
   });
 
@@ -202,6 +208,14 @@ describe('FEATURE: supervisor state', () => {
       const transition = reduceSupervisor(state, connect);
 
       expect(transition.effects).toEqual([replyFailed]);
+    });
+
+    it('WHEN its servers have exited THEN it keeps answering failed and schedules its exit', () => {
+      const expected: SupervisorTransition = { state, effects: [scheduleIdle] };
+
+      const transition = reduceSupervisor(state, serversExited);
+
+      expect(transition).toEqual(expected);
     });
 
     it('WHEN the idle timer fires THEN it is stopped and exits', () => {

@@ -42,7 +42,8 @@ export const startedPids = async (packageDir: string): Promise<number[]> => {
  * in their argv) and every server they started, then clears the rendezvous files.
  */
 export const killSupervisor = async (packageDir: string): Promise<void> => {
-  const socketPath = rendezvousPath(packageDir, process.platform, tmpdir());
+  const uid = String(process.getuid?.());
+  const socketPath = rendezvousPath(packageDir, process.platform, tmpdir(), uid);
   const lockPath = lockPathOf(socketPath);
   const supervisorPid = await lockOwnerPid(lockPath);
   const serverPids = await startedPids(packageDir);

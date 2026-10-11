@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { spawnSupervisor } from './supervisor.process.ts';
+import { rotateServerLog, spawnSupervisor } from './supervisor.process.ts';
 import { waitUntil } from '../test/utils/static-server.spec.util.ts';
 
 const ECHO_SUPERVISOR = join(import.meta.dirname, '../test/fixtures/echo-supervisor.mjs');
@@ -56,6 +56,14 @@ describe('FEATURE: supervisor process', (): void => {
 
       expect(hasOutput).toBe(true);
       expect(readLog(logPath)).toMatch(/^previous run\n\{"args"/);
+    });
+  });
+
+  describe('GIVEN a package dir without server.log', (): void => {
+    it('WHEN the log is rotated THEN nothing is created', async (): Promise<void> => {
+      await rotateServerLog(packageDir);
+
+      await expect(access(`${logPath}.1`)).rejects.toThrow('ENOENT');
     });
   });
 });

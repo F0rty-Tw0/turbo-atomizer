@@ -7,10 +7,7 @@ const LISTING_ONLY_ENV: string[] = [PLAYWRIGHT_JSON_OUTPUT_FILE_ENV, TURBO_ATOMI
 const isServerVariable = ([name]: [string, string]): boolean => !LISTING_ONLY_ENV.includes(name);
 
 /** Playwright's server env: its defaults, then the env the config was resolved in, then `webServer.env`. */
-export const serverEnvOf = (
-  captured: Record<string, string>,
-  entryEnv: Record<string, string> | undefined
-): Record<string, string> => {
+export const serverEnvOf = (captured: Record<string, string>, entryEnv: Record<string, string> | undefined): Record<string, string> => {
   const capturedEntries = Object.entries(captured).filter(isServerVariable);
   const capturedEnv = Object.fromEntries(capturedEntries);
   const env = { ...SERVER_DEFAULT_ENV, ...capturedEnv, ...entryEnv };

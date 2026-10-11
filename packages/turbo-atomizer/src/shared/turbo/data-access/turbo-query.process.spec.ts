@@ -74,12 +74,23 @@ describe('FEATURE: turbo query process', (): void => {
       expect(tasks).toEqual([]);
     });
 
-    it('WHEN one spec changed THEN only its file task is returned by full name', async (): Promise<void> => {
+    it('WHEN one spec changed THEN only its file task and the carrier it depends on are returned by full name', async (): Promise<void> => {
+      const fileAndCarrier = ['web-e2e#e2e-ci--tests/a.spec.ts', 'web-e2e#e2e-ci-src--tests/a.spec.ts'];
+
       await appendFile(join(workspace.directory, 'apps/web-e2e/tests/a.spec.ts'), '// edit\n');
 
       const tasks = await turboQueryAffectedTasks(workspace.directory, 'e2e-ci');
 
-      expect(tasks).toEqual(['web-e2e#e2e-ci--tests/a.spec.ts']);
+      expect(tasks).toEqual(expect.arrayContaining(fileAndCarrier));
+      expect(tasks).toHaveLength(2);
+    });
+
+    it('WHEN one spec changed THEN its carrier is the affected carrier task, since the carrier holds the spec as input', async (): Promise<void> => {
+      await appendFile(join(workspace.directory, 'apps/web-e2e/tests/a.spec.ts'), '// edit\n');
+
+      const carriers = await turboQueryAffectedTasks(workspace.directory, 'carrier');
+
+      expect(carriers).toEqual(['web-e2e#e2e-ci-src--tests/a.spec.ts']);
     });
 
     it('WHEN a spec changed but another task group is queried THEN no task is returned', async (): Promise<void> => {
