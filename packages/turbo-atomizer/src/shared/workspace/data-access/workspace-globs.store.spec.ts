@@ -21,7 +21,7 @@ describe('FEATURE: workspace globs store', (): void => {
     });
 
     it('WHEN the globs are read THEN the packages entries are returned', async (): Promise<void> => {
-      const globs = await readWorkspaceGlobs(fixtureDirectory('init-pnpm'));
+      const globs = await readWorkspaceGlobs(fixtureDirectory('init-pnpm'), 'pnpm');
 
       expect(globs).toEqual(['apps/*']);
     });
@@ -35,7 +35,7 @@ describe('FEATURE: workspace globs store', (): void => {
     it('WHEN an uncovered dir is ensured THEN the dir is appended to packages', async (): Promise<void> => {
       await ensureWorkspaceGlob(copy.directory, 'pnpm', 'tools/web-e2e-atoms');
 
-      const globs = await readWorkspaceGlobs(copy.directory);
+      const globs = await readWorkspaceGlobs(copy.directory, 'pnpm');
 
       expect(globs).toEqual(['apps/*', 'tools/web-e2e-atoms']);
     });
@@ -119,7 +119,7 @@ describe('FEATURE: workspace globs store', (): void => {
     });
 
     it('WHEN the globs are read THEN an empty list is returned', async (): Promise<void> => {
-      const globs = await readWorkspaceGlobs(copy.directory);
+      const globs = await readWorkspaceGlobs(copy.directory, 'pnpm');
 
       expect(globs).toEqual([]);
     });
@@ -155,7 +155,7 @@ describe('FEATURE: workspace globs store', (): void => {
     });
 
     it('WHEN the globs are read THEN package.json workspaces are returned', async (): Promise<void> => {
-      const globs = await readWorkspaceGlobs(fixtureDirectory('init-npm'));
+      const globs = await readWorkspaceGlobs(fixtureDirectory('init-npm'), 'npm');
 
       expect(globs).toEqual(['apps/*']);
     });
@@ -163,7 +163,7 @@ describe('FEATURE: workspace globs store', (): void => {
     it('WHEN an uncovered dir is ensured THEN it is appended to package.json workspaces', async (): Promise<void> => {
       await ensureWorkspaceGlob(copy.directory, 'npm', 'tools/web-e2e-atoms');
 
-      const globs = await readWorkspaceGlobs(copy.directory);
+      const globs = await readWorkspaceGlobs(copy.directory, 'npm');
 
       expect(globs).toEqual(['apps/*', 'tools/web-e2e-atoms']);
     });
