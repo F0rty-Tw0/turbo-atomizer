@@ -45,6 +45,9 @@ export const E2E_PM_ENV = 'ATOMIZER_E2E_PM';
 /** A turbo version or dist-tag that replaces every fixture's pinned turbo; the non-blocking `turbo@latest` CI job sets it. */
 export const E2E_TURBO_VERSION_ENV = 'ATOMIZER_E2E_TURBO_VERSION';
 
+/** Set for one run, makes every pnpm-basic test hold open for 120 s; turbo passes it through without hashing it. */
+export const E2E_HANG_ENV = 'ATOMIZER_E2E_HANG';
+
 const GIT_IDENTITY = 'turbo-atomizer-e2e';
 
 const GIT_EMAIL = 'e2e@turbo-atomizer.invalid';

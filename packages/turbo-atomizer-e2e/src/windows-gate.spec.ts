@@ -3,6 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  E2E_HANG_ENV,
   PNPM_BASIC_SPECS,
   TEST_PACKAGE_DIR,
   TURBO_ATOMIZER_ARGS_ENV,
@@ -109,7 +110,8 @@ describe('FEATURE: Windows gate', (): void => {
       });
 
       it('WHEN turbo is killed mid-run THEN no process of its Playwright run remains 10 s later', async (): Promise<void> => {
-        const running = startCommand(workspace.root, 'turbo run e2e-ci --force');
+        // every test holds open for 120 s, so a process of the run is gone 10 s after the kill only because the kill ended it
+        const running = startCommand(workspace.root, 'turbo run e2e-ci --force', { [E2E_HANG_ENV]: '1' });
 
         const browserRunning = async (): Promise<TurboRunSnapshot | undefined> => {
           const processes = await windowsProcesses();

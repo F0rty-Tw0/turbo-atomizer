@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "agentGuidance": false,
-  "globalPassThroughEnv": ["ATOMIZER_E2E_FAIL"],
+  "globalPassThroughEnv": ["ATOMIZER_E2E_FAIL", "ATOMIZER_E2E_HANG"],
   "tasks": {
     "build": {
       "outputs": ["dist/**"]
