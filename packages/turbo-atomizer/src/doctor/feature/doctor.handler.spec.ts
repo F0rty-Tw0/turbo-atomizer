@@ -68,6 +68,18 @@ describe('FEATURE: doctor handler', (): void => {
       },
       RUN_TIMEOUT_MS
     );
+
+    it(
+      'WHEN doctor runs on a failing package before it THEN the exit code stays 1',
+      async (): Promise<void> => {
+        const missingDir = join(copy.directory, 'apps/missing');
+
+        const exitCode = await doctorHandler([missingDir, packageDir]);
+
+        expect(exitCode).toBe(1);
+      },
+      RUN_TIMEOUT_MS
+    );
   });
 
   describe('GIVEN a test package without a name', (): void => {
