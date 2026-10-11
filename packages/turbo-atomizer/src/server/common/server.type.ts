@@ -49,4 +49,5 @@ export type SupervisorLoopOptions = {
   readonly idleMs: number;
   readonly log: Writable;
   readonly startupFailure: string | undefined;
+  readonly token: string;
 };

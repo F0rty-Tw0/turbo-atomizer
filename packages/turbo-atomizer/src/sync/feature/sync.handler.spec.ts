@@ -67,5 +67,42 @@ describe('FEATURE: sync handler', (): void => {
       },
       LIST_TIMEOUT_MS
     );
+
+    it(
+      'WHEN the failing one is synced first THEN the exit code is still 1',
+      async (): Promise<void> => {
+        const brokenDir = join(copy.directory, 'apps/outside');
+
+        const exitCode = await syncHandler([brokenDir, packageDir], { check: false });
+
+        expect(exitCode).toBe(1);
+      },
+      LIST_TIMEOUT_MS
+    );
+  });
+
+  describe('GIVEN a stale package and an up-to-date one in another workspace', (): void => {
+    let syncedCopy: FixtureCopy;
+    let syncedDir: string;
+
+    beforeEach(async (): Promise<void> => {
+      syncedCopy = await copyFixture('basic');
+      syncedDir = join(syncedCopy.directory, 'apps/e2e');
+      await syncHandler([syncedDir], { check: false });
+    }, LIST_TIMEOUT_MS);
+
+    afterEach(async (): Promise<void> => {
+      await syncedCopy.dispose();
+    });
+
+    it(
+      'WHEN the stale one is checked first THEN the exit code is still 1',
+      async (): Promise<void> => {
+        const exitCode = await syncHandler([packageDir, syncedDir], { check: true });
+
+        expect(exitCode).toBe(1);
+      },
+      LIST_TIMEOUT_MS
+    );
   });
 });

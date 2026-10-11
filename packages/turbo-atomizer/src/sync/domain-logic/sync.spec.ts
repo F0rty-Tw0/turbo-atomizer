@@ -1,4 +1,4 @@
-import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -20,10 +20,20 @@ const ATOMS_FILE = 'tools/e2e-atoms/turbo.json';
 const SPEC_PATHS = ['a.spec.ts', 'b.spec.ts', 'nested/c.spec.ts'];
 const FILE_TASK_NAMES = ['e2e-ci--tests/a.spec.ts', 'e2e-ci--tests/b.spec.ts', 'e2e-ci--tests/nested/c.spec.ts'];
 const NO_DIFF: AtomsDiff = { added: [], removed: [], changed: [] };
+const SPEC_EXCLUSION = '!**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}';
 
 const isFileTask = ([, task]: [string, TurboTaskDefinition]): boolean => task.tags?.includes('atomizer:e2e-ci') ?? false;
 
 const fileTasksOf = (tasks: GeneratedTasks): [string, TurboTaskDefinition][] => Object.entries(tasks).filter(isFileTask);
+
+const fileInputsOf = (tasks: GeneratedTasks): (string[] | undefined)[] =>
+  fileTasksOf(tasks).map(([, task]): string[] | undefined => task.inputs);
+
+const carrierInputsOf = (tasks: GeneratedTasks): (string[] | undefined)[] =>
+  SPEC_PATHS.map((spec): string[] | undefined => tasks[`e2e-ci-src--tests/${spec}`]?.inputs);
+
+const blobFlagsOf = (tasks: GeneratedTasks): boolean[] =>
+  fileTasksOf(tasks).map(([, task]): boolean => task.command?.includes('--atomizer-blob') ?? false);
 
 const writeAtomizerConfig = async (packageDir: string, config: Record<string, unknown>): Promise<void> => {
   const text = JSON.stringify(config);
@@ -89,9 +99,19 @@ describe('FEATURE: sync one test package', (): void => {
       });
 
       it('THEN each command adds a blob reporter because the config has none', (): void => {
-        const hasBlobFlag = fileTasksOf(tasks).map(([, task]): boolean => task.command?.includes('--atomizer-blob') ?? false);
+        expect(blobFlagsOf(tasks)).toEqual([true, true, true]);
+      });
 
-        expect(hasBlobFlag).toEqual([true, true, true]);
+      it('THEN each file task excludes the snapshot folders and no config file, since none exists', (): void => {
+        const inputs = ['$TURBO_DEFAULT$', SPEC_EXCLUSION, '!**/*-snapshots/**'];
+
+        expect(fileInputsOf(tasks)).toEqual([inputs, inputs, inputs]);
+      });
+
+      it('THEN each carrier brings in its spec and its own snapshot folder', (): void => {
+        const inputs = SPEC_PATHS.map((spec): string[] => [`tests/${spec}`, `tests/${spec}-snapshots/**`]);
+
+        expect(carrierInputsOf(tasks)).toEqual(inputs);
       });
 
       it('THEN the aggregate task depends on the file tasks only', (): void => {
@@ -152,6 +172,43 @@ describe('FEATURE: sync one test package', (): void => {
     });
   });
 
+  describe('GIVEN a config file picking a Playwright config with a blob reporter and a snapshotDir', (): void => {
+    let copy: FixtureCopy;
+    let tasks: GeneratedTasks;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+
+      const packageDir = join(copy.directory, 'apps/e2e');
+
+      await writeAtomizerConfig(packageDir, { playwrightConfig: 'playwright.blob.config.ts' });
+      await syncPackage(packageDir, { check: false });
+      tasks = await readGeneratedTasks(join(copy.directory, ATOMS_FILE));
+    }, LIST_TIMEOUT_MS);
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    describe('WHEN it is synced', (): void => {
+      it('THEN no command adds a blob reporter', (): void => {
+        expect(blobFlagsOf(tasks)).toEqual([false, false, false]);
+      });
+
+      it('THEN each file task keeps the snapshots shared and excludes the config file', (): void => {
+        const inputs = ['$TURBO_DEFAULT$', SPEC_EXCLUSION, '!turbo-atomizer.json'];
+
+        expect(fileInputsOf(tasks)).toEqual([inputs, inputs, inputs]);
+      });
+
+      it('THEN each carrier brings in its spec only', (): void => {
+        const inputs = SPEC_PATHS.map((spec): string[] => [`tests/${spec}`]);
+
+        expect(carrierInputsOf(tasks)).toEqual(inputs);
+      });
+    });
+  });
+
   describe('GIVEN a fresh copy of the basic fixture', (): void => {
     let copy: FixtureCopy;
     let packageDir: string;
@@ -164,6 +221,22 @@ describe('FEATURE: sync one test package', (): void => {
     afterEach(async (): Promise<void> => {
       await copy.dispose();
     });
+
+    it(
+      'WHEN it is synced through a symlinked package path THEN every spec gets a file task',
+      async (): Promise<void> => {
+        const linkDir = join(copy.directory, 'apps/e2e-link');
+
+        await symlink(packageDir, linkDir);
+        await syncPackage(linkDir, { check: false });
+
+        const tasks = await readGeneratedTasks(join(copy.directory, ATOMS_FILE));
+        const fileTaskNames = fileTasksOf(tasks).map(([name]): string => name);
+
+        expect(fileTaskNames).toEqual(FILE_TASK_NAMES);
+      },
+      LIST_TIMEOUT_MS
+    );
 
     it(
       'WHEN its config lists a spec outside the package THEN the spec is rejected by name',

@@ -22,19 +22,19 @@ const readTextOrEmpty = async (filePath: string): Promise<string> => {
 };
 
 const readPnpmWorkspaceGlobs = async (filePath: string): Promise<string[]> => {
-  const text = await readFile(filePath, 'utf8');
+  const text = await readTextOrEmpty(filePath);
   const raw: unknown = parseDocument(text).toJS();
   const workspace = pnpmWorkspaceSchema.parse(raw);
 
   return workspace?.packages ?? [];
 };
 
-/** Returns the workspace globs from `pnpm-workspace.yaml` `packages`, else from the root `package.json` `workspaces`. */
-export const readWorkspaceGlobs = async (root: string): Promise<string[]> => {
-  const filePath = join(root, PNPM_WORKSPACE_FILE);
-  const hasPnpmWorkspace = existsSync(filePath);
-
-  if (hasPnpmWorkspace) return readPnpmWorkspaceGlobs(filePath);
+/**
+ * Returns the workspace globs `pm` reads and `ensureWorkspaceGlob` writes: `pnpm-workspace.yaml` `packages` for pnpm,
+ * the root `package.json` `workspaces` for npm, so a stray file of the other package manager is ignored.
+ */
+export const readWorkspaceGlobs = async (root: string, pm: PackageManager): Promise<string[]> => {
+  if (pm === 'pnpm') return readPnpmWorkspaceGlobs(join(root, PNPM_WORKSPACE_FILE));
 
   return readPackageJsonWorkspaces(root);
 };
@@ -51,6 +51,21 @@ const coversDir = (glob: string, dir: string): boolean => {
   if (isNegation) return false;
 
   return matchesGlob(dir, normalizeGlob(glob));
+};
+
+const excludesDir = (glob: string, dir: string): boolean => {
+  const isNegation = glob.startsWith('!');
+
+  if (!isNegation) return false;
+
+  return matchesGlob(dir, normalizeGlob(glob.slice(1)));
+};
+
+/** Returns the `!` glob that excludes `dir` (posix, relative to the root) from the workspace, if any. */
+export const findExcludingGlob = async (root: string, pm: PackageManager, dir: string): Promise<string | undefined> => {
+  const globs = await readWorkspaceGlobs(root, pm);
+
+  return globs.find((glob) => excludesDir(glob, dir));
 };
 
 const withWorkspaceGlob = (text: string, dir: string): string => {
@@ -85,7 +100,7 @@ const addPnpmWorkspaceGlob = async (root: string, dir: string): Promise<void> =>
 
 /** Adds `dir` (posix, relative to the root) to the workspace globs unless a glob already covers it (init step 6). */
 export const ensureWorkspaceGlob = async (root: string, pm: PackageManager, dir: string): Promise<boolean> => {
-  const globs = await readWorkspaceGlobs(root);
+  const globs = await readWorkspaceGlobs(root, pm);
   const isCovered = globs.some((glob) => coversDir(glob, dir));
 
   if (isCovered) return false;

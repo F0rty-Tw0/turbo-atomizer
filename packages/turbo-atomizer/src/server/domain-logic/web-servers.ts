@@ -85,6 +85,19 @@ export const startWebServers = async (packageDir: string, configFile: string, lo
   }
 };
 
+const isRejected = (result: PromiseSettledResult<void>): result is PromiseRejectedResult => result.status === 'rejected';
+
+const reasonOf = (result: PromiseRejectedResult): unknown => result.reason;
+
+/** Waits for every stop to settle, so no server still holds its port once this returns; then rejects with every failure. */
 export const stopWebServers = async (servers: RunningServer[]): Promise<void> => {
-  await Promise.all(servers.map(stopServer));
+  const results = await Promise.allSettled(servers.map(stopServer));
+  const rejected = results.filter(isRejected);
+  const reasons = rejected.map(reasonOf);
+
+  if (reasons.length === 0) return;
+
+  const message = reasons.map(String).join('; ');
+
+  throw new AggregateError(reasons, message);
 };

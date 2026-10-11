@@ -29,7 +29,8 @@ const resolveConfig = (packageDir: string, raw: unknown, source: AtomizerConfigS
   const generatedPackage = result.data.generatedPackage ?? `tools/${packageName}-atoms`;
   const playwrightConfig = result.data.playwrightConfig ?? findPlaywrightConfig(packageDir) ?? DEFAULT_PLAYWRIGHT_CONFIG;
   const config: AtomizerConfig = { ...result.data, generatedPackage, playwrightConfig };
-  const loaded: LoadedAtomizerConfig = { config, source };
+  const hasGeneratedPackage = result.data.generatedPackage !== undefined;
+  const loaded: LoadedAtomizerConfig = { config, hasGeneratedPackage, source };
 
   return loaded;
 };
