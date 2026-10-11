@@ -1,7 +1,12 @@
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import { SUPERVISOR_SPAWN_FLAG } from '../common/server.const.ts';
 import type { SupervisorStart, Win32CreateResult, WindowsLaunch } from '../common/server.type.ts';
-import { OUTSIDE_JOB_REASON, UNDOCUMENTED_CREATE_FAILURE, WIN32_CREATE_FAILURES } from '../common/windows-launch.const.ts';
+import {
+  LAUNCH_FIELD_SEPARATOR,
+  OUTSIDE_JOB_REASON,
+  UNDOCUMENTED_CREATE_FAILURE,
+  WIN32_CREATE_FAILURES
+} from '../common/windows-launch.const.ts';
 
 type EnvEntry = [string, string | undefined];
 
@@ -11,20 +16,11 @@ const BACKSLASHES_BEFORE_QUOTE = /(\\*)"/g;
 
 const TRAILING_BACKSLASHES = /(\\+)$/;
 
-// each UTF-16 code unit outside printable ASCII, surrogate halves one by one
-const NON_ASCII = /[\u007f-\uffff]/g;
+/** `launch` as the launch script reads it from stdin: command line, cwd, then each env entry, NUL-separated (none can hold a NUL). */
+export const toLaunchStdin = (launch: WindowsLaunch): string => {
+  const fields = [launch.commandLine, launch.cwd, ...launch.env];
 
-const toUnicodeEscape = (char: string): string => {
-  const hex = char.charCodeAt(0).toString(16);
-
-  return `\\u${hex.padStart(4, '0')}`;
-};
-
-/** `value` as JSON with every non-ASCII char `\u`-escaped, so powershell reads it intact whatever its input code page. */
-export const toAsciiJson = (value: unknown): string => {
-  const json = JSON.stringify(value);
-
-  return json.replace(NON_ASCII, toUnicodeEscape);
+  return fields.join(LAUNCH_FIELD_SEPARATOR);
 };
 
 /** `arg` as one CommandLineToArgvW argument: quoted, each quote escaped, and backslashes doubled only before a quote. */

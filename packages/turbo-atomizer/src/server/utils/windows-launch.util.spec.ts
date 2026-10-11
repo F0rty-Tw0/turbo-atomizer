@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createdPid, quoteWindowsArg, toAsciiJson, toEnvironmentStrings, toSupervisorLaunch } from './windows-launch.util.ts';
+import { createdPid, quoteWindowsArg, toEnvironmentStrings, toLaunchStdin, toSupervisorLaunch } from './windows-launch.util.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { SupervisorStart } from '../common/server.type.ts';
 
@@ -66,14 +66,11 @@ describe('FEATURE: Windows supervisor launch', (): void => {
     });
   });
 
-  describe('GIVEN a launch whose env holds non-ASCII text', (): void => {
-    it('WHEN it is serialized for powershell stdin THEN the JSON is pure ASCII and parses back to the same value', (): void => {
-      const launch = { commandLine: '"node"', cwd: 'C:\\Users\\Zoë', env: ['GREETING=héllo 世界 🎉'] };
+  describe('GIVEN a launch to send to the launch script', (): void => {
+    it('WHEN it is serialized for powershell stdin THEN command line, cwd and each env entry are NUL-separated in that order', (): void => {
+      const launch = { commandLine: '"node" "a b"', cwd: 'C:\\Users\\Zoë', env: ['PATH=C:\\bin', 'GREETING=héllo 世界'] };
 
-      const json = toAsciiJson(launch);
-
-      expect(json).toMatch(/^[\x20-\x7e]*$/);
-      expect(JSON.parse(json)).toEqual(launch);
+      expect(toLaunchStdin(launch)).toBe('"node" "a b"\0C:\\Users\\Zoë\0PATH=C:\\bin\0GREETING=héllo 世界');
     });
   });
 

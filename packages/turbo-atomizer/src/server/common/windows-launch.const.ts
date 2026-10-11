@@ -3,19 +3,23 @@ export const POWERSHELL_EXE = 'powershell.exe';
 /** Lets a hung WMI call fail the exec instead of stalling it. */
 export const WINDOWS_LAUNCH_TIMEOUT_MS = 30_000;
 
+export const LAUNCH_FIELD_SEPARATOR = '\0';
+
 /**
- * Reads `{ commandLine, cwd, env }` as ASCII JSON from stdin, so the env never shows in a command line, and prints
- * `{ returnValue, processId }`. `EnvironmentVariables` replaces the new process's env rather than adding to it.
+ * Reads the command line, cwd and env entries NUL-separated as UTF-8 from stdin, so the env never shows in a command line,
+ * and prints `{ returnValue, processId }`. Plain .NET only, no cmdlets: turbo strips PSModulePath and
+ * PSModuleAnalysisCachePath from a task's env, so a task's powershell spends ~22 s finding the first cmdlet it runs.
+ * `EnvironmentVariables` replaces the new process's env rather than adding to it.
  */
 const LAUNCH_STATEMENTS = [
   "$ErrorActionPreference = 'Stop'",
-  '$request = [Console]::In.ReadToEnd() | ConvertFrom-Json',
-  '$startupProperties = @{ EnvironmentVariables = [string[]]$request.env; ShowWindow = [uint16]0 }',
-  '$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property $startupProperties',
-  '$arguments = @{ CommandLine = $request.commandLine; CurrentDirectory = $request.cwd; ProcessStartupInformation = $startup }',
-  '$created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments $arguments',
-  '$result = @{ returnValue = [int]$created.ReturnValue; processId = [int]$created.ProcessId }',
-  '[Console]::Out.Write((ConvertTo-Json -Compress -InputObject $result))'
+  '$stdin = [System.IO.StreamReader]::new([Console]::OpenStandardInput(), [System.Text.Encoding]::UTF8)',
+  '$commandLine, $cwd, $environment = $stdin.ReadToEnd().Split([char]0)',
+  "$startup = ([wmiclass]'Win32_ProcessStartup').CreateInstance()",
+  '$startup.ShowWindow = [uint16]0',
+  '$startup.EnvironmentVariables = [string[]]$environment',
+  "$created = ([wmiclass]'Win32_Process').Create($commandLine, $cwd, $startup)",
+  "[Console]::Out.Write('{\"returnValue\":' + [int]$created.ReturnValue + ',\"processId\":' + [int]$created.ProcessId + '}')"
 ];
 
 const LAUNCH_SCRIPT = LAUNCH_STATEMENTS.join('; ');
