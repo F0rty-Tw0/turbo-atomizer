@@ -1,29 +1,72 @@
-// TEMPORARY CI probe (PR #9, S1): runs as the web package's build task, so everything here runs inside a turbo task.
-// powershell is spawned detached so libuv does not put it in node's own child job; it then reports the job it inherited.
+// TEMPORARY CI probe (PR #9, S1): runs as the web package's build task, so everything here runs inside a turbo task, and
+// again straight from vitest (argv[2] = 'direct'). It times variants of the WMI launch to find why powershell hangs.
 const { spawn } = require('node:child_process');
-const { closeSync, existsSync, openSync, readFileSync, writeFileSync } = require('node:fs');
+const { writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 
-const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const VARIANT_TIMEOUT_MS = 20_000;
+const where = process.argv[2] ?? 'turbo';
 
-const outPath = join(__dirname, 'self.json');
-const out = openSync(outPath, 'w');
-const args = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join(__dirname, 'probe.ps1'), 'self'];
-const started = Date.now();
-const child = spawn('powershell.exe', args, { detached: true, stdio: ['ignore', out, out], windowsHide: true });
+const TAIL = [
+  '$startupProperties = @{ EnvironmentVariables = [string[]]$request.env; ShowWindow = [uint16]0 }',
+  '$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property $startupProperties',
+  '$arguments = @{ CommandLine = $request.commandLine; CurrentDirectory = $request.cwd; ProcessStartupInformation = $startup }',
+  '$created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments $arguments',
+  '$result = @{ returnValue = [int]$created.ReturnValue; processId = [int]$created.ProcessId }',
+  '[Console]::Out.Write((ConvertTo-Json -Compress -InputObject $result))'
+];
 
-child.unref();
-closeSync(out);
+const tail = (statements) => ["$ErrorActionPreference = 'Stop'", ...statements, ...TAIL].join('; ');
 
-const end = Date.now() + 120_000;
-let text = '';
+const SCRIPTS = {
+  streamReader: tail([
+    '$reader = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), [System.Text.Encoding]::UTF8)',
+    '$request = $reader.ReadToEnd() | ConvertFrom-Json'
+  ]),
+  consoleIn: tail(['$request = [Console]::In.ReadToEnd() | ConvertFrom-Json']),
+  input: tail(['$request = ($input | Out-String) | ConvertFrom-Json']),
+  envVar: tail(['$request = $env:TA_PROBE_LAUNCH | ConvertFrom-Json'])
+};
 
-while (Date.now() < end) {
-  text = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
+const request = JSON.stringify({
+  commandLine: `"${process.execPath}" "-e" "0"`,
+  cwd: __dirname,
+  env: Object.entries(process.env).map(([key, value]) => `${key}=${value}`)
+});
 
-  if (text.includes('}')) break;
+const run = (name, viaEnv) =>
+  new Promise((resolve) => {
+    const started = Date.now();
+    const args = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', SCRIPTS[name]];
+    const env = viaEnv ? { ...process.env, TA_PROBE_LAUNCH: request } : process.env;
+    const stdio = viaEnv ? ['ignore', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'];
+    const child = spawn('powershell.exe', args, { env, stdio, timeout: VARIANT_TIMEOUT_MS, windowsHide: true });
+    let stdout = '';
+    let stderr = '';
 
-  sleepMs(250);
-}
+    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stderr.on('data', (chunk) => (stderr += chunk));
+    child.on('error', (error) => resolve({ name, ms: Date.now() - started, error: String(error) }));
+    child.on('close', (code, signal) => resolve({ name, ms: Date.now() - started, code, signal, stdout, stderr: stderr.slice(-300) }));
 
-writeFileSync(join(__dirname, 'probe.json'), JSON.stringify({ selfMs: Date.now() - started, self: text }));
+    if (!viaEnv) {
+      child.stdin.on('error', () => undefined);
+      child.stdin.end(request);
+    }
+  });
+
+const main = async () => {
+  const results = [];
+
+  results.push(await run('consoleIn', false));
+  results.push(await run('streamReader', false));
+  results.push(await run('input', false));
+  results.push(await run('envVar', true));
+  results.push(await run('consoleIn', false));
+
+  const parallel = await Promise.all([1, 2, 3, 4, 5, 6].map(() => run('streamReader', false)));
+
+  writeFileSync(join(__dirname, `probe-${where}.json`), JSON.stringify({ results, parallel }));
+};
+
+main();

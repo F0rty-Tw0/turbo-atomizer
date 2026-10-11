@@ -1,4 +1,4 @@
-// TEMPORARY CI probe (PR #9, S1), removed before the PR is ready: prints the limit flags of the job a turbo task runs in.
+// TEMPORARY CI probe (PR #9, S1), removed before the PR is ready: times variants of the WMI launch inside and outside a turbo task.
 import { cp } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -10,7 +10,7 @@ import { outputOf } from './test/utils/workspace-command.spec.util.ts';
 
 const IS_WINDOWS = process.platform === 'win32';
 const PROBE_DIR = join(import.meta.dirname, 'test/fixtures/job-probe');
-const PROBE_TIMEOUT_MS = 180_000;
+const PROBE_TIMEOUT_MS = 600_000;
 const OUTPUT_TAIL = 4000;
 
 const missingReport = (): string => 'null';
@@ -18,7 +18,7 @@ const missingReport = (): string => 'null';
 describe('FEATURE: job probe', (): void => {
   describe.runIf(IS_WINDOWS && isPmSelected('pnpm'))('GIVEN the pnpm-basic workspace with a probe as the web build', (): void => {
     it(
-      'WHEN turbo runs the probe THEN the flags of the job it runs in are printed',
+      'WHEN turbo runs the probe THEN the timing of each launch variant is printed',
       async (): Promise<void> => {
         const workspace = await createFixtureWorkspace('pnpm-basic', 'pnpm');
 
@@ -26,12 +26,15 @@ describe('FEATURE: job probe', (): void => {
           await cp(PROBE_DIR, join(workspace.root, 'apps/web'), { recursive: true });
 
           const run = await workspace.run('turbo run build --force');
-
-          const text = await workspace.read('apps/web/probe.json').catch(missingReport);
-          const report: unknown = JSON.parse(text);
+          const direct = await workspace.run('node apps/web/build.js direct');
+          const inTurbo = await workspace.read('apps/web/probe-turbo.json').catch(missingReport);
+          const outsideTurbo = await workspace.read('apps/web/probe-direct.json').catch(missingReport);
           const output = outputOf(run).slice(-OUTPUT_TAIL);
+          const directOutput = outputOf(direct).slice(-OUTPUT_TAIL);
 
-          console.warn(`JOB-PROBE ${JSON.stringify({ exitCode: run.exitCode, report, output })}`);
+          console.warn(`JOB-PROBE-TURBO ${inTurbo}`);
+          console.warn(`JOB-PROBE-DIRECT ${outsideTurbo}`);
+          console.warn(`JOB-PROBE-OUTPUT ${JSON.stringify({ exitCode: run.exitCode, output, directOutput })}`);
 
           expect(run.exitCode, output).toBe(0);
         } finally {
