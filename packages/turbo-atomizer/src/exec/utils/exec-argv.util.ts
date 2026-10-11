@@ -1,7 +1,7 @@
+import { ATOMIZER_BLOB_FLAG } from '../../shared/atomizer/common/atomizer.const.ts';
 import type { ExecArgs } from '../common/exec.type.ts';
 import {
   ADD_REPORTER_OPTION,
-  ATOMIZER_BLOB_FLAG,
   CONFIG_OPTIONS,
   FILTER_OPTIONS,
   OPTIONAL_VALUE_OPTIONS,

@@ -1,5 +1,3 @@
-export const ATOMIZER_BLOB_FLAG = '--atomizer-blob';
-
 export const ADD_REPORTER_OPTION = '--add-reporter';
 
 export const CONFIG_OPTIONS = ['-c', '--config'];
