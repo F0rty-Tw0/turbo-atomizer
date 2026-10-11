@@ -7,7 +7,7 @@ import { turboQueryAffectedTasks, turboQueryFileDeps, turboQueryPackageTasks } f
 import type { FixtureCopy } from '../../../test/common/fixture-copy.type.ts';
 import { TurboQueryException } from '../common/turbo-query.exception.ts';
 import type { PackageTasks } from '../common/turbo-query.type.ts';
-import { commitQueryWorkspace, copyQueryWorkspace } from '../test/utils/query-workspace.spec.util.ts';
+import { commitQueryWorkspace, copyQueryWorkspace, stubLocalScmBase } from '../test/utils/query-workspace.spec.util.ts';
 
 describe('FEATURE: turbo query process', (): void => {
   describe('GIVEN a workspace where a spec imports a helper, an outside file, a node_modules package and a missing package', (): void => {
@@ -58,7 +58,7 @@ describe('FEATURE: turbo query process', (): void => {
     let workspace: FixtureCopy;
 
     beforeEach(async (): Promise<void> => {
-      vi.stubEnv('TURBO_SCM_BASE', 'HEAD');
+      stubLocalScmBase();
       workspace = await copyQueryWorkspace();
       await commitQueryWorkspace(workspace);
     });
