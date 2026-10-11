@@ -5,6 +5,7 @@ import { bundlePackage } from './build-package-bundle.ts';
 import { buildPackageContext } from './build-package-context.ts';
 import { emitPackageDeclarations } from './build-package-declarations.ts';
 import { writePublishedManifest } from './build-package-manifest.ts';
+import { writeConfigSchema } from './build-schema.ts';
 
 export const buildPackage = async (projectRoot: string, outDir: string): Promise<void> => {
   const context = buildPackageContext(projectRoot, outDir);
@@ -13,6 +14,7 @@ export const buildPackage = async (projectRoot: string, outDir: string): Promise
   await mkdir(context.outputRoot, { recursive: true });
   await bundlePackage(context);
   emitPackageDeclarations(context);
+  await writeConfigSchema(context);
   await writePublishedManifest(context);
 };
 

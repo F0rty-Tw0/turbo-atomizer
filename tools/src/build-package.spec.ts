@@ -15,6 +15,7 @@ const ENTRY_FILES = [
   'playwright.cjs',
   'playwright.d.ts',
   'playwright.js',
+  'schema.json',
   'supervisor.js'
 ];
 
@@ -46,6 +47,16 @@ describe('FEATURE: build package', (): void => {
         expect(manifest).toHaveProperty(['exports', './exec', 'require'], cjsPath);
       });
 
+      it('THEN ./schema.json is exported', (): void => {
+        expect(manifest).toHaveProperty(['exports', './schema.json'], './schema.json');
+      });
+
+      it('THEN schema.json is a published file', (): void => {
+        const files: unknown = expect.arrayContaining(['schema.json']);
+
+        expect(manifest).toHaveProperty(['files'], files);
+      });
+
       it('THEN the turbo-atomizer bin points at cli.js', (): void => {
         expect(manifest).toHaveProperty(['bin', 'turbo-atomizer'], './cli.js');
       });
@@ -65,6 +76,13 @@ describe('FEATURE: build package', (): void => {
       const files = await readdir(outDir);
 
       expect(files).toEqual(expect.arrayContaining(ENTRY_FILES));
+    });
+
+    it('WHEN schema.json is read THEN it describes the task field', async (): Promise<void> => {
+      const text = await readFile(join(outDir, 'schema.json'), 'utf8');
+      const schema: unknown = JSON.parse(text);
+
+      expect(schema).toHaveProperty(['properties', 'task', 'type'], 'string');
     });
 
     it('WHEN cli.js is read THEN it starts with a node shebang', async (): Promise<void> => {
