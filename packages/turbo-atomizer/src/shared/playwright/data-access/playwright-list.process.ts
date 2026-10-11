@@ -48,7 +48,10 @@ const readReport = async (reportFile: string, stderr: string): Promise<SpecListi
   const raw: unknown = JSON.parse(text);
   const parsed = playwrightListReportSchema.safeParse(raw);
 
-  if (!parsed.success) throw new PlaywrightListException(`unreadable JSON report: ${parsed.error.message}`, toStderrTail(stderr), { cause: parsed.error });
+  if (!parsed.success)
+    throw new PlaywrightListException(`unreadable JSON report: ${parsed.error.message}`, toStderrTail(stderr), {
+      cause: parsed.error
+    });
 
   return toSpecListing(parsed.data);
 };
@@ -67,7 +70,13 @@ export const listSpecs = async (packageDir: string, configFile: string, options:
   const listArgs = testListArgs(listFile, options.metadataOnly);
   const args = [bin, 'test', '--list', '--reporter=json', '--pass-with-no-tests', `--config=${configFile}`, ...listArgs];
   const extraEnv = options.extraEnv ?? {};
-  const env = { ...process.env, [TURBO_ATOMIZER_ENV]: '1', [TURBO_ATOMIZER_DESCRIBE_ENV]: '1', ...extraEnv, [PLAYWRIGHT_JSON_OUTPUT_FILE_ENV]: reportFile };
+  const env = {
+    ...process.env,
+    [TURBO_ATOMIZER_ENV]: '1',
+    [TURBO_ATOMIZER_DESCRIBE_ENV]: '1',
+    ...extraEnv,
+    [PLAYWRIGHT_JSON_OUTPUT_FILE_ENV]: reportFile
+  };
   const run: ListRun = { args, cwd: packageDir, env };
 
   try {
