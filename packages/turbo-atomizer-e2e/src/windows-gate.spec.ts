@@ -39,6 +39,10 @@ const WINDOWS_COMMAND_LINE_LIMIT = 32_767;
 const ALL_FILE_TASKS = PNPM_BASIC_SPECS.map(fileTaskId);
 const GREP_ARGS = JSON.stringify(['--grep', 'sign in is offered']);
 const AFFECTED_FILTER = '--filter=web-e2e';
+// the supervisor's and the server's stdout and stderr, which explain a supervisor that is gone
+const SERVER_LOG = `${TEST_PACKAGE_DIR}/.atomizer/server.log`;
+
+const noServerLog = (): string => `no ${SERVER_LOG}`;
 
 describe('FEATURE: Windows gate', (): void => {
   describe.runIf(IS_WINDOWS && isPmSelected('pnpm'))(
@@ -65,6 +69,7 @@ describe('FEATURE: Windows gate', (): void => {
         const run = await summarizedRun(workspace.root, 'turbo run e2e-ci');
         const processes = await windowsProcesses();
         const pids = await startedPids(workspace.root, 'starts');
+        const serverLog = await workspace.read(SERVER_LOG).catch(noServerLog);
 
         serverPid = pids.at(-1) ?? 0;
 
@@ -72,8 +77,8 @@ describe('FEATURE: Windows gate', (): void => {
         expect(run.result, outputOf(run.result)).toMatchObject({ exitCode: 0 });
         expect(missedFileTaskIds(run.tasks)).toEqual(ALL_FILE_TASKS);
         expect(pids).toHaveLength(1);
-        expect(isAlive(serverPid)).toBe(true);
-        expect(supervisorsOf(processes, workspace.root)).toHaveLength(1);
+        expect(supervisorsOf(processes, workspace.root), serverLog).toHaveLength(1);
+        expect(isAlive(serverPid), serverLog).toBe(true);
       });
 
       it('WHEN TURBO_ATOMIZER_ARGS holds a JSON grep with spaces THEN the args reach Playwright whole and the server is reused', async (): Promise<void> => {
