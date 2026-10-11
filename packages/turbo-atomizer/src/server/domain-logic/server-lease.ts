@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { ownRendezvousPath, ownRendezvousToken, preparePrivateDir, refuseForeignListener } from './rendezvous.ts';
+import { startSupervisor } from './supervisor-start.ts';
 import type { ServerLease } from '../../shared/server/common/server-lease.type.ts';
 import { ServerFailedException } from '../common/server-failed.exception.ts';
 import type { ServerMessage } from '../common/server-protocol.type.ts';
@@ -14,7 +15,6 @@ import {
   SUPERVISOR_SPAWNS
 } from '../common/server.const.ts';
 import { connectSocket, onVerifiedMessages } from '../data-access/rendezvous-client.socket.ts';
-import { spawnSupervisor } from '../data-access/supervisor.process.ts';
 import { nextProbeDelay } from '../utils/probe-schedule.util.ts';
 
 const ignoreSocketError = (): void => undefined;
@@ -64,7 +64,7 @@ const connectSupervisor = async (socketPath: string, packageDir: string, configF
 
   if (existing !== undefined) return existing;
 
-  const spawn = async (): Promise<void> => spawnSupervisor(supervisorPath, packageDir, configFile);
+  const spawn = async (): Promise<void> => startSupervisor(supervisorPath, packageDir, configFile);
 
   await spawn();
 

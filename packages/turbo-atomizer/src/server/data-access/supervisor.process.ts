@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { StdioOptions } from 'node:child_process';
-import { copyFile, mkdir, open, truncate } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, open, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { ATOMIZER_OUTPUT_DIR } from '../../shared/atomizer/common/atomizer.const.ts';
@@ -27,6 +27,14 @@ export const spawnSupervisor = async (supervisorPath: string, packageDir: string
   } finally {
     await log.close();
   }
+};
+
+/** Appends `line` to `.atomizer/server.log`, creating the dir first like `spawnSupervisor`. */
+export const appendServerLog = async (packageDir: string, line: string): Promise<void> => {
+  const outputDir = join(packageDir, ATOMIZER_OUTPUT_DIR);
+
+  await mkdir(outputDir, { recursive: true });
+  await appendFile(join(outputDir, SERVER_LOG_FILE), line);
 };
 
 /**
