@@ -14,6 +14,9 @@ export const TURBO_ATOMIZER_SERVER_ENV_ENV = 'TURBO_ATOMIZER_SERVER_ENV';
 
 export const TURBO_ATOMIZER_COUNT_FILE_ENV = 'TURBO_ATOMIZER_COUNT_FILE';
 
+/** Extra Playwright args for every file task; listed in each file task's hashed `env` (spec §6.3). */
+export const TURBO_ATOMIZER_ARGS_ENV = 'TURBO_ATOMIZER_ARGS';
+
 export const DEFAULT_TASK = 'e2e-ci';
 
 export const DEFAULT_SPEC_GLOBS = ['**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'];
