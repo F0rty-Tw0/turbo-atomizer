@@ -42,7 +42,12 @@ describe('FEATURE: spec validation', () => {
       'tests/{a}.spec.ts',
       'tests/a*.spec.ts',
       'tests/a?.spec.ts',
-      'tests/!a.spec.ts'
+      'tests/!a.spec.ts',
+      'tests/a(1.spec.ts',
+      'tests/a)1.spec.ts',
+      'tests/a,b.spec.ts',
+      'tests/a<b.spec.ts',
+      'tests/a>b.spec.ts'
     ];
 
     it.each(globPaths)('WHEN %j is validated THEN the error names the path and asks for a rename', (taskPath) => {
@@ -53,9 +58,21 @@ describe('FEATURE: spec validation', () => {
     });
   });
 
-  describe('GIVEN a task path without glob metacharacters', () => {
-    it('WHEN a path with spaces is validated THEN no error is returned', () => {
-      const error = validateTaskPath('tests/my spec.spec.ts');
+  describe('GIVEN a task path with "#"', () => {
+    it('WHEN it is validated THEN the error says turbo reads "#" as package#task and asks for a rename', () => {
+      const error = validateTaskPath('tests/a#b.spec.ts');
+
+      expect(error).toContain('tests/a#b.spec.ts');
+      expect(error).toContain('package#task');
+      expect(error).toContain('rename');
+    });
+  });
+
+  describe('GIVEN a task path turbo accepts', () => {
+    const acceptedPaths = ['tests/my spec.spec.ts', 'tests/a$b.spec.ts', 'tests/a@b.spec.ts', 'tests/a+b.spec.ts'];
+
+    it.each(acceptedPaths)('WHEN %j is validated THEN no error is returned', (taskPath) => {
+      const error = validateTaskPath(taskPath);
 
       expect(error).toBeUndefined();
     });
