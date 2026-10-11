@@ -3,3 +3,5 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+# Expected generator output, compared byte for byte
+/packages/turbo-atomizer/src/sync/test/fixtures

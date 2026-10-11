@@ -38,15 +38,18 @@ export const PACKAGE_EXPORTS: PackageExportMap = {
   './count-reporter': countReporterExport,
   './exec': execExport,
   './package.json': './package.json',
-  './playwright': playwrightExport
+  './playwright': playwrightExport,
+  './schema.json': './schema.json'
 };
 
 export const PACKAGE_BIN: PackageBinMap = {
   'turbo-atomizer': './cli.js'
 };
 
-export const PUBLISHED_FILES = ['**/*.js', '**/*.cjs', '**/*.d.ts'];
+export const PUBLISHED_FILES = ['**/*.js', '**/*.cjs', '**/*.d.ts', 'schema.json'];
 
 export const PACKAGE_ASSETS = ['LICENSE', 'README.md'];
+
+export const CONFIG_SCHEMA_MODULE = 'src/shared/config/common/atomizer-config.schema.ts';
 
 export const DEPENDENCY_FIELDS: DependencyField[] = ['dependencies', 'optionalDependencies', 'peerDependencies'];
