@@ -15,6 +15,7 @@ const ATOMIZER_CONFIG = `${TEST_PACKAGE_DIR}/turbo-atomizer.json`;
 const COVERED_CONFIG = '{ "generatedPackage": "tools/web-e2e-atoms", "extraInputs": ["$TURBO_ROOT$/shared/**"] }\n';
 const TEST_PACKAGE_JSON = `${TEST_PACKAGE_DIR}/package.json`;
 const APP_DEPENDENCY = '"web": "workspace:*"';
+const PLAYWRIGHT_CONFIG = `${TEST_PACKAGE_DIR}/playwright.config.ts`;
 const GENERATED_DIR = 'tools/web-e2e-atoms';
 
 /** Adds `shared/x.ts` at the workspace root and imports it from the home spec. */
@@ -74,6 +75,15 @@ describe('FEATURE: doctor on a packed consumer', (): void => {
       expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 1 });
       expect(doctor.stdout).toContain('  error stale-generated: ');
       expect(doctor.stdout).toContain('  error turbo-query-failed: ');
+    });
+
+    it('WHEN the Playwright config is no longer wrapped in withAtomizer THEN doctor exits 1 with a helper-missing error', async (): Promise<void> => {
+      await replaceInWorkspace(workspace, PLAYWRIGHT_CONFIG, 'export default withAtomizer(', 'export default (');
+
+      const doctor = await workspace.run('turbo-atomizer doctor');
+
+      expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 1 });
+      expect(doctor.stdout).toContain('  error helper-missing: ');
     });
 
     it('WHEN a spec imports a root file nothing covers THEN doctor exits 1 with an outside-import error naming both', async (): Promise<void> => {
