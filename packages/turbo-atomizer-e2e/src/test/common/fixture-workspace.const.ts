@@ -1,5 +1,7 @@
 import type { CommandEnv, PackageManager } from './fixture-workspace.type.ts';
 
+export const ATOMIZER_PACKAGE = 'turbo-atomizer';
+
 export const TEST_PACKAGE_DIR = 'apps/web-e2e';
 
 export const ATOMS_TURBO_JSON = 'tools/web-e2e-atoms/turbo.json';
