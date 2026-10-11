@@ -6,6 +6,7 @@ import { SupervisorLoop } from './supervisor-loop.ts';
 import { DEFAULT_SERVER_IDLE_MS } from '../../shared/atomizer/common/atomizer.const.ts';
 import { loadAtomizerConfig } from '../../shared/config/domain-logic/atomizer-config.ts';
 import type { SupervisorLoopOptions } from '../common/server.type.ts';
+import { rotateServerLog } from '../data-access/supervisor.process.ts';
 
 type SupervisorSettings = Pick<SupervisorLoopOptions, 'idleMs' | 'startupFailure'>;
 
@@ -40,6 +41,7 @@ export const runSupervisor = async (packageDir: string, configFile: string, log:
     return;
   }
 
+  await rotateServerLog(root);
   log.write(`[turbo-atomizer] supervisor ${String(process.pid)} listening on ${socketPath}\n`);
   loop.start();
   await loop.done;

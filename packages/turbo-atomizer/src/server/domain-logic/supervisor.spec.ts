@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { access, mkdir } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import type { Server, Socket } from 'node:net';
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
@@ -18,6 +18,7 @@ import { lockPathOf } from '../utils/rendezvous-path.util.ts';
 
 const RUN_TIMEOUT_MS = 30_000;
 const LISTEN_WAIT_MS = 10_000;
+const PREVIOUS_LOG = 'previous run\n';
 
 const endConnection = (socket: Socket): void => {
   socket.end();
@@ -88,6 +89,16 @@ describe('FEATURE: supervisor', (): void => {
       await expect(exists(socketPath)).resolves.toBe(true);
       await expect(exists(lockPathOf(socketPath))).resolves.toBe(false);
     });
+
+    it('WHEN the supervisor runs THEN it leaves server.log as it was', async (): Promise<void> => {
+      const logPath = join(copy.directory, '.atomizer/server.log');
+
+      await writeFile(logPath, PREVIOUS_LOG);
+      await runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
+
+      await expect(readFile(logPath, 'utf8')).resolves.toBe(PREVIOUS_LOG);
+      await expect(exists(`${logPath}.1`)).resolves.toBe(false);
+    });
   });
 
   describe('GIVEN a free rendezvous and a package with idleMs 500', (): void => {
@@ -103,6 +114,24 @@ describe('FEATURE: supervisor', (): void => {
       expect(message.state).toBe('ready');
       await expect(exists(socketPath)).resolves.toBe(false);
       await expect(exists(lockPathOf(socketPath))).resolves.toBe(false);
+    }, RUN_TIMEOUT_MS);
+  });
+
+  describe('GIVEN a free rendezvous and a server.log from a previous run', (): void => {
+    it('WHEN the supervisor claims the rendezvous THEN the previous log moves to server.log.1 and server.log starts over', async (): Promise<void> => {
+      const logPath = join(copy.directory, '.atomizer/server.log');
+
+      await writeFile(logPath, PREVIOUS_LOG);
+
+      const run = runSupervisor(copy.directory, 'playwright.config.ts', new PassThrough());
+      const client = await connectWhenListening(socketPath);
+
+      await readyMessage(client);
+      client.destroy();
+      await run;
+
+      await expect(readFile(`${logPath}.1`, 'utf8')).resolves.toBe(PREVIOUS_LOG);
+      await expect(readFile(logPath, 'utf8')).resolves.toBe('');
     }, RUN_TIMEOUT_MS);
   });
 });
