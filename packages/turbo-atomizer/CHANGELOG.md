@@ -13,3 +13,4 @@ First release.
 - A shared web server serves every concurrent file task.
 - `TURBO_ATOMIZER_ARGS` passes Playwright args to every file task.
 - `turbo-atomizer/schema.json` describes the config for editors.
+- Runs on Linux, macOS and Windows, in pnpm and npm workspaces.

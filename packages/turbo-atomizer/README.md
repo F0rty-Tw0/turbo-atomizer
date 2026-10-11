@@ -10,7 +10,7 @@ Each file then gets turbo's local and remote cache, affected-only selection, and
 - Adding or removing a spec changes no other file's hash.
 - Editing the app under test invalidates every file.
 
-Version `0.x`: the API can still change. The e2e suite in this repo runs on Linux with pnpm.
+Version `0.x`: the API can still change. The e2e suite in this repo runs on Linux, macOS and Windows, with pnpm and npm workspaces.
 
 ## How it works
 
@@ -403,6 +403,7 @@ A task whose inputs miss a file can replay an old pass after that file changes. 
 - **`sync` loads your specs**, so workspace packages they import must be built first.
 - **`--affected` changes repo-wide.** `futureFlags.affectedUsingTaskInputs` makes every `turbo run --affected` in the repo select tasks by their inputs instead of whole packages.
 - **Long `affected` runs.** `affected` names every affected file task on the `turbo run` command line. On Windows, the command-line limit is about 32,000 characters, roughly 800 tasks of 40 characters each.
+- **Windows starts the web server through WMI.** turbo runs each task in a Windows job that kills the task's children when it exits, so the shared web server's supervisor is started with `powershell.exe` and WMI to outlive the task. Without them, the file task fails with an error naming WMI. On a cold start each parallel file task launches a supervisor and one wins; six parallel launches took 0.8–2 s on a CI runner.
 - **Not supported:** sharding over machines, Cypress or other runners, and writing CI vendor config.
 
 ## The experimental-flag risk
