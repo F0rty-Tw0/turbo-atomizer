@@ -50,6 +50,12 @@ describe('FEATURE: server probe', (): void => {
       expect(isReady).toBe(false);
     });
 
+    it('WHEN the url redirects to a Location no URL parser accepts THEN the 302 is the answer and it is ready', async (): Promise<void> => {
+      const isReady = await probeServer(urlFact(`${origin}/r-invalid`));
+
+      expect(isReady).toBe(true);
+    });
+
     it('WHEN the url is a 404 other than / THEN /index.html is not tried and it is not ready', async (): Promise<void> => {
       const isReady = await probeServer(urlFact(`${origin}/missing`));
 
