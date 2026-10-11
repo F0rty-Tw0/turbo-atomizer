@@ -10,6 +10,7 @@ import { copyFixture } from '../../test/utils/fixture-copy.spec.util.ts';
 import { writeMergeFixture } from '../test/utils/merge-fixture.spec.util.ts';
 
 const MERGE_TIMEOUT_MS = 120_000;
+const STATUS_REPORTER_PATH = join(import.meta.dirname, '../../merge-status-reporter.ts');
 
 describe('FEATURE: merge-reports handler', (): void => {
   afterEach((): void => {
@@ -17,7 +18,7 @@ describe('FEATURE: merge-reports handler', (): void => {
   });
 
   it('GIVEN no package WHEN the handler runs THEN it exits 0', async (): Promise<void> => {
-    const exitCode = await mergeReportsHandler([]);
+    const exitCode = await mergeReportsHandler([], STATUS_REPORTER_PATH);
 
     expect(exitCode).toBe(0);
   });
@@ -43,7 +44,7 @@ describe('FEATURE: merge-reports handler', (): void => {
       async (): Promise<void> => {
         vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-        const exitCode = await mergeReportsHandler([packageDir]);
+        const exitCode = await mergeReportsHandler([packageDir], STATUS_REPORTER_PATH);
 
         expect(exitCode).toBe(0);
       },
@@ -57,7 +58,7 @@ describe('FEATURE: merge-reports handler', (): void => {
       beforeAll(async (): Promise<void> => {
         const spy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-        exitCode = await mergeReportsHandler([brokenDir, packageDir]);
+        exitCode = await mergeReportsHandler([brokenDir, packageDir], STATUS_REPORTER_PATH);
         stderr = spy.mock.calls.map(([chunk]): string => String(chunk)).join('');
         spy.mockRestore();
       }, MERGE_TIMEOUT_MS);

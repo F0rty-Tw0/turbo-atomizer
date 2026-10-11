@@ -61,12 +61,27 @@ export const readMergedFiles = async (packageDir: string): Promise<string[]> => 
   return report.suites.map((suite): string => suite.file);
 };
 
-/** Runs one spec file with the blob reporter only, writing `.atomizer/<slug>/blob.zip` as exec would. */
-export const runBlobReport = async (packageDir: string, taskPath: string): Promise<void> => {
+/** The exit code of a child that exited non-zero; rethrows anything else, such as a missing binary. */
+const exitCodeOf = (error: unknown): number => {
+  const hasCode = error instanceof Error && 'code' in error;
+
+  if (hasCode && typeof error.code === 'number') return error.code;
+
+  throw error;
+};
+
+/** Runs one spec file with the blob reporter only, writing `.atomizer/<slug>/blob.zip` as exec would; returns Playwright's exit code. */
+export const runBlobReport = async (packageDir: string, taskPath: string): Promise<number> => {
   const cli = require.resolve('@playwright/test/cli');
   const blobFile = join('.atomizer', toAtomSlug(taskPath), 'blob.zip');
   const env = { ...process.env, [PLAYWRIGHT_BLOB_OUTPUT_FILE_ENV]: blobFile };
   const args = [cli, 'test', taskPath, '--config=playwright.merge.config.ts', '--reporter=blob'];
 
-  await execFileAsync(process.execPath, args, { cwd: packageDir, env });
+  try {
+    await execFileAsync(process.execPath, args, { cwd: packageDir, env });
+
+    return 0;
+  } catch (error) {
+    return exitCodeOf(error);
+  }
 };

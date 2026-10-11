@@ -26,6 +26,8 @@ vi.mock(
 
 const MERGE_TIMEOUT_MS = 120_000;
 const UNWRAPPED_ATOMIZER_CONFIG = '{ "playwrightConfig": "playwright.unwrapped.config.ts" }\n';
+const STATUS_REPORTER_PATH = join(import.meta.dirname, '../../merge-status-reporter.ts');
+const FAILING_SPEC = "import { expect, test } from '@playwright/test';\n\ntest('d fails', () => {\n  expect(1 + 1).toBe(3);\n});\n";
 
 const stderrText = (calls: unknown[][]): string => calls.map(([chunk]): string => String(chunk)).join('');
 
@@ -57,7 +59,7 @@ describe('FEATURE: merge reports', (): void => {
       beforeAll(async (): Promise<void> => {
         const spy = vi.spyOn(process.stderr, 'write');
 
-        exitCode = await mergeReports(packageDir);
+        exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
         stderr = stderrText(spy.mock.calls);
         spy.mockRestore();
       }, MERGE_TIMEOUT_MS);
@@ -93,8 +95,66 @@ describe('FEATURE: merge reports', (): void => {
 
         vi.mocked(runPlaywrightMerge).mockRejectedValueOnce(failure);
 
-        await expect(mergeReports(packageDir)).rejects.toBe(failure);
+        await expect(mergeReports(packageDir, STATUS_REPORTER_PATH)).rejects.toBe(failure);
         expect(existsSync(join(packageDir, MERGE_CONFIG_FILE))).toBe(false);
+      },
+      MERGE_TIMEOUT_MS
+    );
+
+    it(
+      'WHEN the merge exits non-zero THEN that exit code is returned',
+      async (): Promise<void> => {
+        vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+        vi.mocked(runPlaywrightMerge).mockResolvedValueOnce(2);
+
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+
+        expect(exitCode).toBe(2);
+      },
+      MERGE_TIMEOUT_MS
+    );
+
+    it(
+      'WHEN the merge exits 0 without the status reporter running THEN it exits 1 and says the status is missing',
+      async (): Promise<void> => {
+        const spy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+
+        vi.mocked(runPlaywrightMerge).mockResolvedValueOnce(0);
+
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+
+        expect(exitCode).toBe(1);
+        expect(stderrText(spy.mock.calls)).toContain('no merge status');
+      },
+      MERGE_TIMEOUT_MS
+    );
+  });
+
+  describe('GIVEN a package whose only blob holds a failed test', (): void => {
+    let copy: FixtureCopy;
+    let packageDir: string;
+    let blobExitCode: number;
+
+    beforeAll(async (): Promise<void> => {
+      copy = await copyFixture('basic');
+      packageDir = await writeMergeFixture(copy.directory, ['tests/d.spec.ts']);
+      await writeFile(join(packageDir, 'tests/d.spec.ts'), FAILING_SPEC);
+      blobExitCode = await runBlobReport(packageDir, 'tests/d.spec.ts');
+    }, MERGE_TIMEOUT_MS);
+
+    afterAll(async (): Promise<void> => {
+      await copy.dispose();
+    });
+
+    it(
+      'WHEN the reports are merged THEN it exits 1',
+      async (): Promise<void> => {
+        vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
+
+        expect(blobExitCode).toBe(1);
+        expect(exitCode).toBe(1);
       },
       MERGE_TIMEOUT_MS
     );
@@ -118,7 +178,7 @@ describe('FEATURE: merge reports', (): void => {
       async (): Promise<void> => {
         vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-        const exitCode = await mergeReports(packageDir);
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
 
         expect(exitCode).toBe(0);
         expect(runPlaywrightMerge).not.toHaveBeenCalled();
@@ -146,7 +206,7 @@ describe('FEATURE: merge reports', (): void => {
       async (): Promise<void> => {
         const spy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-        const exitCode = await mergeReports(packageDir);
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
 
         expect(exitCode).toBe(1);
         expect(stderrText(spy.mock.calls)).toContain('turbo-atomizer sync');
@@ -174,7 +234,7 @@ describe('FEATURE: merge reports', (): void => {
       async (): Promise<void> => {
         const spy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-        const exitCode = await mergeReports(packageDir);
+        const exitCode = await mergeReports(packageDir, STATUS_REPORTER_PATH);
 
         expect(exitCode).toBe(1);
         expect(stderrText(spy.mock.calls)).toContain('withAtomizer');
