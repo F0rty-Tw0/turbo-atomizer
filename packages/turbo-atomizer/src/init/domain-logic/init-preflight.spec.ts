@@ -39,6 +39,19 @@ describe('FEATURE: init preflight', (): void => {
       expect(plan.generated.dir).toBe('tools/custom');
     });
 
+    it('WHEN init is planned with an absolute --generated-dir THEN it rejects with InitConflictException', async (): Promise<void> => {
+      const planning = planInit(optionsFor(PNPM_PACKAGE_DIR, '/abs-gen'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('generated dir "/abs-gen" must be a relative path inside the workspace root');
+    });
+
+    it('WHEN init is planned with a --generated-dir outside the workspace root THEN it rejects with InitConflictException', async (): Promise<void> => {
+      const planning = planInit(optionsFor(PNPM_PACKAGE_DIR, '../outside-gen'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('generated dir "../outside-gen" must be a relative path inside the workspace root');
+    });
     it('WHEN turbo is above the tested range THEN the plan carries the warning', async (): Promise<void> => {
       const untested: PeerVersions = { ...PEER_VERSIONS_STUB, turbo: '2.12.0' };
       const { versions } = initDepsMock();
@@ -105,7 +118,23 @@ describe('FEATURE: init preflight', (): void => {
 
       const planning = planInit(optionsFor(packageDir, 'tools/y-atoms'), initDepsMock().versions);
 
-      await expect(planning).rejects.toThrow(/generatedPackage "tools\/x-atoms" but --generated-dir is "tools\/y-atoms"/);
+      await expect(planning).rejects.toThrow('the atomizer config sets generatedPackage "tools/x-atoms" but --generated-dir is "tools/y-atoms"');
+    });
+
+    it('WHEN the config sets generatedPackage to the default dir and --generated-dir differs THEN it rejects with InitConflictException', async (): Promise<void> => {
+      await writeFile(join(packageDir, 'turbo-atomizer.json'), '{ "generatedPackage": "tools/web-e2e-atoms" }\n');
+
+      const planning = planInit(optionsFor(packageDir, 'tools/y-atoms'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow('the atomizer config sets generatedPackage "tools/web-e2e-atoms" but --generated-dir is "tools/y-atoms"');
+    });
+
+    it('WHEN the config does not set generatedPackage and --generated-dir is passed THEN that dir is used', async (): Promise<void> => {
+      await writeFile(join(packageDir, 'turbo-atomizer.json'), '{}\n');
+
+      const plan = await planInit(optionsFor(packageDir, 'tools/y-atoms'), initDepsMock().versions);
+
+      expect(plan.generated.dir).toBe('tools/y-atoms');
     });
 
     it('WHEN the test package has an e2e-ci script THEN it rejects with InitConflictException naming the script', async (): Promise<void> => {
@@ -133,6 +162,15 @@ describe('FEATURE: init preflight', (): void => {
       const planning = planInit(optionsFor(packageDir), initDepsMock().versions);
 
       await expect(planning).rejects.toThrow(/holds @acme\/other/);
+    });
+
+    it('WHEN a negated workspace glob excludes the generated dir THEN it rejects with InitConflictException naming the glob', async (): Promise<void> => {
+      await writeFile(join(copy.directory, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n  - 'tools/*'\n  - '!tools/web-e2e-atoms'\n");
+
+      const planning = planInit(optionsFor(packageDir), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow(InitConflictException);
+      await expect(planning).rejects.toThrow('"!tools/web-e2e-atoms"');
     });
   });
 });

@@ -3,6 +3,7 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/pr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { assertFreshAtomizerBuild } from './atomizer-build.spec.util.ts';
 import { freePorts } from './free-port.spec.util.ts';
 import { dryRunTasks, taskHashesOf } from './turbo-summary.spec.util.ts';
 import { runChecked, runCommand } from './workspace-command.spec.util.ts';
@@ -59,6 +60,8 @@ const fillPorts = async (root: string): Promise<void> => {
 
 /** Packs the built package into `root` and returns the tarball's file name. */
 const packAtomizer = async (root: string): Promise<string> => {
+  await assertFreshAtomizerBuild(ATOMIZER_DIST);
+
   const result = await runChecked(root, `npm pack ${JSON.stringify(ATOMIZER_DIST)} --pack-destination . --json`);
   const raw: unknown = JSON.parse(result.stdout);
   const [packed] = npmPackSchema.parse(raw);

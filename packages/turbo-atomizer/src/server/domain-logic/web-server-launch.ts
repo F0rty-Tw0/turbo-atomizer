@@ -66,12 +66,7 @@ const watchOutput = (child: ServerChild, wait: WaitFact | undefined, log: Writab
   child.stdout.on('data', (chunk: Buffer): void => onChunk('stdout', chunk));
   child.stderr.on('data', (chunk: Buffer): void => onChunk('stderr', chunk));
 
-  const output: ServerOutput = {
-    captured: (): Record<string, string> | undefined => captured,
-    closed,
-    exit: (): string | undefined => exit,
-    tail: (): string => tail
-  };
+  const output: ServerOutput = { captured: (): Record<string, string> | undefined => captured, closed, exit: (): string | undefined => exit, tail: (): string => tail };
 
   return output;
 };
@@ -86,8 +81,7 @@ const awaitReady = async (server: RunningServer, output: ServerOutput): Promise<
   for (let attempt = 0; ; attempt += 1) {
     const exit = output.exit();
 
-    if (exit !== undefined)
-      return failedLaunch(`webServer "${fact.command}" exited with ${exit} before it was ready`, output.tail(), server);
+    if (exit !== undefined) return failedLaunch(`webServer "${fact.command}" exited with ${exit} before it was ready`, output.tail(), server);
 
     const env = output.captured();
 
@@ -100,20 +94,14 @@ const awaitReady = async (server: RunningServer, output: ServerOutput): Promise<
 
     const now = Date.now();
 
-    if (now >= deadline)
-      return failedLaunch(`timed out after ${String(timeout)} ms waiting for webServer "${fact.command}"`, output.tail(), server);
+    if (now >= deadline) return failedLaunch(`timed out after ${String(timeout)} ms waiting for webServer "${fact.command}"`, output.tail(), server);
 
     await Promise.race([sleep(nextProbeDelay(attempt)), output.closed]);
   }
 };
 
 /** Reuses a server that already answers (never stopped later); otherwise spawns `command` in the config dir and waits for it. */
-export const launchWebServer = async (
-  fact: WebServerFact,
-  configDir: string,
-  env: Record<string, string>,
-  log: Writable
-): Promise<LaunchOutcome> => {
+export const launchWebServer = async (fact: WebServerFact, configDir: string, env: Record<string, string>, log: Writable): Promise<LaunchOutcome> => {
   const isUp = await probeServer(fact);
 
   if (isUp) {

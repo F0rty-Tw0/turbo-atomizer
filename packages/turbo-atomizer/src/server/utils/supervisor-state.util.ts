@@ -67,6 +67,7 @@ const onServersReady = (state: SupervisorState, env: Record<string, string>): Su
   return idle;
 };
 
+/** The exit is scheduled only once the servers have exited, so `failed` is answered for the whole stop plus `idleMs`. */
 const onServerFailed = (state: SupervisorState, failure: string, logTail: string): SupervisorTransition => {
   const isRunning = state.phase === 'starting' || state.phase === 'ready';
 
@@ -75,7 +76,7 @@ const onServerFailed = (state: SupervisorState, failure: string, logTail: string
   const message: ServerMessage = { state: 'failed', message: failure, logTail };
   const next: SupervisorState = { ...state, phase: 'failed', message };
   const broadcast: SupervisorEffect = { type: 'broadcast', message };
-  const transition: SupervisorTransition = { state: next, effects: [broadcast, STOP_SERVERS, SCHEDULE_IDLE] };
+  const transition: SupervisorTransition = { state: next, effects: [broadcast, CANCEL_IDLE, STOP_SERVERS] };
 
   return transition;
 };
@@ -94,6 +95,12 @@ const onIdleTimeout = (state: SupervisorState): SupervisorTransition => {
 };
 
 const onServersExited = (state: SupervisorState): SupervisorTransition => {
+  if (state.phase === 'failed') {
+    const failedIdle: SupervisorTransition = { state, effects: [SCHEDULE_IDLE] };
+
+    return failedIdle;
+  }
+
   if (state.phase !== 'stopping') return unchanged(state);
 
   if (state.leases === 0) return stopped(state);
