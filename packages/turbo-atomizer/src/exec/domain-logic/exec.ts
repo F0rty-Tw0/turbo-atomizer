@@ -32,6 +32,12 @@ const failInvalidAtomizerArgs = (value: string | undefined): number => {
   return failExec(`${TURBO_ATOMIZER_ARGS_ENV} is not a JSON array of strings: ${String(value)}`);
 };
 
+const failCommaReporterPath = (countReporterPath: string): number => {
+  return failExec(
+    `the counting reporter path ${countReporterPath} contains a comma, which Playwright's --add-reporter splits on; install turbo-atomizer under a path without commas`
+  );
+};
+
 const findConfigFile = (cwd: string, execArgs: ExecArgs): string | undefined => {
   const configFile = execArgs.configFile;
 
@@ -88,6 +94,10 @@ export const runExec = async (argv: string[], cwd: string, deps: ExecDeps): Prom
   if (configFile === undefined) return skipGeneratedCopy(cwd, execArgs.taskPath);
 
   if (envArgs === undefined) return failInvalidAtomizerArgs(deps.atomizerArgs);
+
+  const hasCommaReporterPath = deps.countReporterPath.includes(',');
+
+  if (hasCommaReporterPath) return failCommaReporterPath(deps.countReporterPath);
 
   const hasTaskFile = packageFileExists(cwd, execArgs.taskPath);
 

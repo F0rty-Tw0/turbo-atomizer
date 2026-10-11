@@ -125,4 +125,18 @@ describe('FEATURE: generated package store', (): void => {
       await expect(writing).rejects.toBeInstanceOf(InitConflictException);
     });
   });
+
+  describe('GIVEN a generated dir whose package.json is not valid JSON', (): void => {
+    beforeEach(async (): Promise<void> => {
+      await mkdir(generatedDir, { recursive: true });
+      await writeFile(join(generatedDir, 'package.json'), '{ "name": ');
+    });
+
+    it('WHEN the owner is read THEN it rejects with InitConflictException naming the file', async (): Promise<void> => {
+      const reading = readGeneratedPackageOwner(generatedDir);
+
+      await expect(reading).rejects.toThrow(InitConflictException);
+      await expect(reading).rejects.toThrow(`${join(generatedDir, 'package.json')}: is not valid JSON`);
+    });
+  });
 });

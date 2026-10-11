@@ -15,6 +15,21 @@ type FailedMessage = {
 
 export type ServerMessage = StartingMessage | ReadyMessage | FailedMessage;
 
+/** The client's first line: a fresh random challenge per connection. */
+export type NonceLine = {
+  readonly nonce: string;
+};
+
+/** The supervisor's first line: HMAC-SHA256 of the client's nonce, keyed with this user's rendezvous token. */
+export type ProofLine = {
+  readonly proof: string;
+};
+
+export type ServerMessageHandlers = {
+  readonly onMessage: (message: ServerMessage) => void;
+  readonly onRefused: () => void;
+};
+
 export type WaitPattern = {
   readonly source: string;
   readonly flags: string;

@@ -14,6 +14,7 @@ import { runInstall } from '../../shared/workspace/data-access/install.process.t
 import { ensureRootDevDependency } from '../../shared/workspace/data-access/root-package-json.store.ts';
 import { ensureWorkspaceGlob } from '../../shared/workspace/data-access/workspace-globs.store.ts';
 import { syncPackage } from '../../sync/domain-logic/sync.ts';
+import { InitConflictException } from '../common/init-conflict.exception.ts';
 import type { InitDeps, InitOptions, InitPlan, InitReport, PeerVersions, TurboJsonPlan } from '../common/init.type.ts';
 import { writeGeneratedPackage } from '../data-access/generated-package.store.ts';
 import { initNextSteps } from '../utils/init-summary.util.ts';
@@ -114,8 +115,16 @@ export const initPackage = async (options: InitOptions, deps: InitDeps): Promise
   return syncOrNextSteps(plan, base);
 };
 
+const readTurboVersion = async (root: string): Promise<string> => {
+  try {
+    return await getTurboVersion(root);
+  } catch {
+    throw new InitConflictException(root, 'cannot read turbo/package.json from the workspace root; install turbo there, then re-run init.');
+  }
+};
+
 const readPeerVersions = async (root: string, packageDir: string): Promise<PeerVersions> => {
-  const turbo = await getTurboVersion(root);
+  const turbo = await readTurboVersion(root);
   const playwright = getPlaywrightVersion(packageDir);
   const versions: PeerVersions = { playwright, turbo };
 

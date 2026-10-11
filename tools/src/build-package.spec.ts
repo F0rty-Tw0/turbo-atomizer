@@ -1,7 +1,9 @@
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { readJsonFile } from '@nx/devkit';
@@ -9,10 +11,22 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildPackage } from './build-package.ts';
 import type { PackageManifest } from './common/build-package.type.ts';
+import {
+  binTargets,
+  catalogSpecifiers,
+  exportTargets,
+  importTargets,
+  requireTargets
+} from './test/utils/published-manifest.spec.util.ts';
 
 const execFileAsync = promisify(execFile);
 
 const packageRoot = resolve(import.meta.dirname, '../../packages/turbo-atomizer');
+
+// exec.cjs runs exec as soon as it loads; exiting synchronously after the loop proves every require() returned without letting that run start.
+const REQUIRE_SCRIPT = 'for (const target of process.argv.slice(1)) require(target); process.exit(0);';
+
+const IMPORT_SCRIPT = 'for (const target of process.argv.slice(1)) await import(target);';
 
 const ENTRY_FILES = [
   'cli.js',
@@ -34,6 +48,7 @@ describe('FEATURE: build package', (): void => {
     beforeAll(async (): Promise<void> => {
       outDir = await mkdtemp(join(tmpdir(), 'build-package-'));
       await buildPackage('packages/turbo-atomizer', outDir);
+      await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');
     });
 
     afterAll(async (): Promise<void> => {
@@ -41,12 +56,10 @@ describe('FEATURE: build package', (): void => {
     });
 
     describe('WHEN the published manifest is read', (): void => {
-      let manifest: unknown;
+      let manifest: PackageManifest;
 
-      beforeAll(async (): Promise<void> => {
-        const text = await readFile(join(outDir, 'package.json'), 'utf8');
-
-        manifest = JSON.parse(text);
+      beforeAll((): void => {
+        manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
       });
 
       it('THEN ./exec is required from a .cjs file', (): void => {
@@ -74,9 +87,62 @@ describe('FEATURE: build package', (): void => {
       });
 
       it('THEN no catalog specifier is left', (): void => {
-        const versionRange: unknown = expect.not.stringMatching(/^catalog:/);
+        const specifiers = catalogSpecifiers(manifest);
 
-        expect(manifest).toHaveProperty(['dependencies', 'zod'], versionRange);
+        expect(specifiers).toEqual([]);
+      });
+
+      it('THEN every export and bin target exists in the output dir', (): void => {
+        const exported = exportTargets(manifest);
+        const bins = binTargets(manifest);
+        const targets = [...exported, ...bins];
+
+        const missing = targets.filter((target): boolean => !existsSync(join(outDir, target)));
+
+        expect(missing).toEqual([]);
+      });
+
+      it('THEN every require and .cjs export target loads with require() in node', async (): Promise<void> => {
+        const targets = requireTargets(manifest);
+        const paths = targets.map((target): string => join(outDir, target));
+
+        const { stderr } = await execFileAsync(
+          process.execPath,
+          ['--no-experimental-require-module', '-e', REQUIRE_SCRIPT, ...paths],
+          { cwd: outDir }
+        );
+
+        expect(targets).not.toEqual([]);
+        expect(stderr).toBe('');
+      });
+
+      it('THEN every import and default .js export target loads with import() in node', async (): Promise<void> => {
+        const targets = importTargets(manifest);
+        const urls = targets.map((target): string => pathToFileURL(join(outDir, target)).href);
+
+        const { stderr } = await execFileAsync(process.execPath, ['--input-type=module', '-e', IMPORT_SCRIPT, ...urls]);
+
+        expect(targets).not.toEqual([]);
+        expect(stderr).toBe('');
+      });
+    });
+
+    describe('WHEN cli.js runs with its runtime dependencies installed next to it', (): void => {
+      it('THEN --version prints the manifest version', async (): Promise<void> => {
+        const manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--version']);
+
+        expect(stdout).toBe(`${manifest.version}\n`);
+      });
+
+      it('THEN --help prints the usage', async (): Promise<void> => {
+        const cliPath = join(outDir, 'cli.js');
+
+        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--help']);
+
+        expect(stdout).toContain('merge-reports');
       });
     });
 
@@ -97,29 +163,6 @@ describe('FEATURE: build package', (): void => {
       const cli = await readFile(join(outDir, 'cli.js'), 'utf8');
 
       expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
-    });
-
-    describe('WHEN cli.js runs with its runtime dependencies installed next to it', (): void => {
-      beforeAll(async (): Promise<void> => {
-        await symlink(join(packageRoot, 'node_modules'), join(outDir, 'node_modules'), 'junction');
-      });
-
-      it('THEN --version prints the manifest version', async (): Promise<void> => {
-        const manifest = readJsonFile<PackageManifest>(join(outDir, 'package.json'));
-        const cliPath = join(outDir, 'cli.js');
-
-        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--version']);
-
-        expect(stdout).toBe(`${manifest.version}\n`);
-      });
-
-      it('THEN --help prints the usage', async (): Promise<void> => {
-        const cliPath = join(outDir, 'cli.js');
-
-        const { stdout } = await execFileAsync(process.execPath, [cliPath, '--help']);
-
-        expect(stdout).toContain('merge-reports');
-      });
     });
   });
 });

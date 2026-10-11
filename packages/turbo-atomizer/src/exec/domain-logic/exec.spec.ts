@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -226,6 +227,49 @@ describe('FEATURE: exec', (): void => {
       },
       RUN_TIMEOUT_MS
     );
+  });
+
+  describe('GIVEN a test package whose @playwright/test manifest has no bin', (): void => {
+    let brokenDir: string;
+
+    beforeAll(async (): Promise<void> => {
+      brokenDir = await mkdtemp(join(tmpdir(), 'atomizer-no-bin-'));
+
+      const manifestDir = join(brokenDir, 'node_modules/@playwright/test');
+
+      await mkdir(manifestDir, { recursive: true });
+      await mkdir(join(brokenDir, 'tests'));
+      await writeFile(join(manifestDir, 'package.json'), '{ "name": "@playwright/test" }\n');
+      await writeFile(join(brokenDir, 'playwright.config.ts'), 'export default {};\n');
+      await writeFile(join(brokenDir, 'tests/a.spec.ts'), '');
+    });
+
+    afterAll(async (): Promise<void> => {
+      await rm(brokenDir, { force: true, recursive: true });
+    });
+
+    it('WHEN the Playwright run throws THEN exec rejects and still releases the server', async (): Promise<void> => {
+      const probe = execProbe(COUNT_REPORTER_PATH);
+
+      const pending = runExec([...A_ARGV, CONFIG_ARG], brokenDir, probe.deps);
+
+      await expect(pending).rejects.toThrow('bin');
+      expect(probe.calls.at(-1)).toEqual(['release']);
+    });
+  });
+
+  describe('GIVEN a counting reporter path that contains a comma', (): void => {
+    it('WHEN exec runs THEN it exits 1 naming the path and the cause, before the server', async (): Promise<void> => {
+      const commaPath = '/opt/a,b/count-reporter.cjs';
+      const probe = execProbe(commaPath);
+
+      const exitCode = await runExec([...A_ARGV, CONFIG_ARG], packageDir, probe.deps);
+      const stderr = stderrChunks.join('');
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain(`${commaPath} contains a comma`);
+      expect(probe.calls).toEqual([]);
+    });
   });
 
   describe('GIVEN TURBO_ATOMIZER_ARGS that is not a JSON array of strings', (): void => {

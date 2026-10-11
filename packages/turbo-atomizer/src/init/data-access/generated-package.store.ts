@@ -21,6 +21,16 @@ const writeIfAbsent = async (filePath: string, text: string): Promise<boolean> =
   return true;
 };
 
+const parseManifest = (filePath: string, text: string): unknown => {
+  try {
+    const raw: unknown = JSON.parse(text);
+
+    return raw;
+  } catch (error) {
+    throw new InitConflictException(filePath, `is not valid JSON (${String(error)}); fix it or pass --generated-dir to choose another dir.`);
+  }
+};
+
 /**
  * Returns the `name` in `dir/package.json`, or `undefined` when there is none. The generated package is owned
  * by the test package whose name plus `-atoms` it carries, so this name is the ownership record (init step 4).
@@ -32,7 +42,7 @@ export const readGeneratedPackageOwner = async (dir: string): Promise<string | u
   if (!exists) return undefined;
 
   const text = await readFile(filePath, 'utf8');
-  const raw: unknown = JSON.parse(text);
+  const raw = parseManifest(filePath, text);
 
   return manifestSchema.parse(raw).name;
 };
