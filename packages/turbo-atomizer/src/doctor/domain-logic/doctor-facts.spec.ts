@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -124,6 +124,22 @@ describe('FEATURE: gather doctor facts', (): void => {
 
         await gatherDoctorFacts(packageDir, deps);
 
+        expect(deps.queryFileDeps).not.toHaveBeenCalled();
+      },
+      LIST_TIMEOUT_MS
+    );
+
+    it(
+      'WHEN its spec is deleted after sync THEN the deleted spec is never queried for imports',
+      async (): Promise<void> => {
+        const deps = doctorDepsMock();
+
+        await syncPackage(packageDir, { check: false });
+        await rm(join(packageDir, 'tests/a.spec.ts'));
+
+        const facts = await gatherDoctorFacts(packageDir, deps);
+
+        expect(facts.stale).toEqual({ added: [], removed: ['e2e-ci--tests/a.spec.ts'], changed: [] });
         expect(deps.queryFileDeps).not.toHaveBeenCalled();
       },
       LIST_TIMEOUT_MS

@@ -56,6 +56,15 @@ describe('FEATURE: doctor on a packed consumer', (): void => {
       expect(doctor.stdout).toContain('  error stale-generated: The generated file tasks are stale (1 added, 0 removed, 0 changed)');
     });
 
+    it('WHEN a spec is deleted without sync THEN doctor exits 1 with a stale-generated error instead of a turbo query crash', async (): Promise<void> => {
+      await workspace.remove(`${TESTS_DIR}/search.spec.ts`);
+
+      const doctor = await workspace.run('turbo-atomizer doctor');
+
+      expect(doctor, outputOf(doctor)).toMatchObject({ exitCode: 1 });
+      expect(doctor.stdout).toContain('  error stale-generated: The generated file tasks are stale (0 added, 1 removed, 0 changed)');
+    });
+
     it('WHEN a spec imports a root file nothing covers THEN doctor exits 1 with an outside-import error naming both', async (): Promise<void> => {
       await importSharedFile(workspace);
 

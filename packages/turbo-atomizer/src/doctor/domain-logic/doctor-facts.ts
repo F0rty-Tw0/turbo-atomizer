@@ -26,6 +26,7 @@ type SyncStatus = {
 type TurboScan = {
   readonly atomsFile: string;
   readonly isQueryable: boolean;
+  readonly isStale: boolean;
   readonly packageDir: string;
   readonly packageName: string;
   readonly root: string;
@@ -64,8 +65,13 @@ const checkSync = async (packageDir: string): Promise<SyncStatus> => {
   }
 };
 
-/** Specs come from the generated file tasks; one `turbo query` per spec, in order, so a large suite never spawns turbo in bulk. */
+/**
+ * Specs come from the generated file tasks; one `turbo query` per spec, in order, so a large suite never spawns turbo in bulk.
+ * A stale generated file may list a deleted spec, which turbo cannot query; stale is already an error, so nothing is scanned then.
+ */
 const scanOutsideImports = async (scan: TurboScan, deps: DoctorDeps): Promise<OutsideImport[]> => {
+  if (scan.isStale) return [];
+
   const atomsText = await readAtomsFile(scan.atomsFile);
   const specs = readFileTaskPaths(atomsText, scan.task);
   const outsideImports: OutsideImport[] = [];
@@ -109,7 +115,16 @@ export const gatherDoctorFacts = async (packageDir: string, deps: DoctorDeps): P
   const playwright = getPlaywrightVersion(absPackageDir);
   const taskCommandFlagSet = hasFutureFlag(rootTurboJson, TASK_COMMAND_FLAG);
   const atomsFile = join(root, config.generatedPackage, ATOMS_TURBO_JSON);
-  const scan: TurboScan = { atomsFile, isQueryable: taskCommandFlagSet, packageDir: rootPackageDir, packageName, root, task: config.task };
+  const isStale = stale !== undefined;
+  const scan: TurboScan = {
+    atomsFile,
+    isQueryable: taskCommandFlagSet,
+    isStale,
+    packageDir: rootPackageDir,
+    packageName,
+    root,
+    task: config.task
+  };
   const { dependencyTasks, outsideImports } = await queryTurboFacts(scan, deps);
   const generated = generatedPackageFor(packageName, absPackageDir);
   const versions = { turbo, playwright };
