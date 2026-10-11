@@ -51,3 +51,23 @@ export type SupervisorLoopOptions = {
   readonly startupFailure: string | undefined;
   readonly token: string;
 };
+
+/** The supervisor `startSupervisor` starts: `<execPath> <supervisorPath> <packageDir> <configFile>`. */
+export type SupervisorStart = {
+  readonly execPath: string;
+  readonly supervisorPath: string;
+  readonly packageDir: string;
+  readonly configFile: string;
+};
+
+/** What `Win32_Process.Create` starts: the command line holds only paths and flags, the whole env travels apart from it. */
+export type WindowsLaunch = {
+  readonly commandLine: string;
+  readonly cwd: string;
+  readonly env: string[];
+};
+
+export type Win32CreateResult = {
+  readonly returnValue: number;
+  readonly processId: number;
+};

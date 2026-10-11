@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { rotateServerLog, spawnSupervisor } from './supervisor.process.ts';
+import { appendServerLog, rotateServerLog, spawnSupervisor } from './supervisor.process.ts';
 import { waitUntil } from '../test/utils/static-server.spec.util.ts';
 
 const ECHO_SUPERVISOR = join(import.meta.dirname, '../test/fixtures/echo-supervisor.mjs');
@@ -64,6 +64,12 @@ describe('FEATURE: supervisor process', (): void => {
       await rotateServerLog(packageDir);
 
       await expect(access(`${logPath}.1`)).rejects.toThrow('ENOENT');
+    });
+
+    it('WHEN a line is appended THEN .atomizer/server.log is created holding it', async (): Promise<void> => {
+      await appendServerLog(packageDir, 'launcher 1 started\n');
+
+      expect(readLog(logPath)).toBe('launcher 1 started\n');
     });
   });
 });

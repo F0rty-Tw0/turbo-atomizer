@@ -1,4 +1,9 @@
-import type { CommandEnv, PackageManager } from './fixture-workspace.type.ts';
+import type { CommandEnv, FixtureName, PackageManager } from './fixture-workspace.type.ts';
+
+/** Fixtures that only hold the files that differ from their base fixture; the harness copies the base first. */
+export const FIXTURE_BASES: Partial<Record<FixtureName, FixtureName>> = { 'npm-basic': 'pnpm-basic' };
+
+export const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml';
 
 export const ATOMIZER_PACKAGE = 'turbo-atomizer';
 
@@ -12,7 +17,7 @@ export const CARRIER_TASK_PREFIX = 'web-e2e#e2e-ci-src--';
 
 export const ALL_TASK_ID = 'web-e2e#e2e-ci--all';
 
-/** The pnpm-basic specs, as task paths relative to the test package, sorted. */
+/** The pnpm-basic and npm-basic specs, as task paths relative to the test package, sorted. */
 export const PNPM_BASIC_SPECS = [
   'tests/cart.spec.ts',
   'tests/checkout.spec.ts',
@@ -35,6 +40,15 @@ export const INSTALL_COMMANDS: Record<PackageManager, string> = {
 export const TURBO_ATOMIZER_ARGS_ENV = 'TURBO_ATOMIZER_ARGS';
 
 export const TURBO_SCM_BASE_ENV = 'TURBO_SCM_BASE';
+
+/** Runs only the cases of one package manager (`npm` or `pnpm`); unset runs both. The CI matrix sets it per leg. */
+export const E2E_PM_ENV = 'ATOMIZER_E2E_PM';
+
+/** A turbo version or dist-tag that replaces every fixture's pinned turbo; the non-blocking `turbo@latest` CI job sets it. */
+export const E2E_TURBO_VERSION_ENV = 'ATOMIZER_E2E_TURBO_VERSION';
+
+/** Set for one run, makes every pnpm-basic test hold open for 120 s; turbo passes it through without hashing it. */
+export const E2E_HANG_ENV = 'ATOMIZER_E2E_HANG';
 
 /** Fails the pnpm-basic profile spec when `1`; the fixture passes it through unhashed (`globalPassThroughEnv`). */
 export const FAIL_TOGGLE_ENV = 'ATOMIZER_E2E_FAIL';

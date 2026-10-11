@@ -24,3 +24,6 @@ export const npmPackSchema = z.array(z.object({ filename: z.string() }));
 
 /** A root `package.json` with its other fields kept. */
 export const rootManifestSchema = z.looseObject({ devDependencies: z.record(z.string(), z.string()) });
+
+/** Any JSON object, its fields kept; for config files a spec edits one key of. */
+export const jsonObjectSchema = z.looseObject({});

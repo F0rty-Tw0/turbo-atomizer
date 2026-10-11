@@ -10,9 +10,16 @@ const initAndSync = async (workspace: FixtureWorkspace): Promise<void> => {
   await workspace.commit('init');
 };
 
-/** A fixture workspace after init and sync; disposes it when setup fails, since vitest skips the teardown of a failed hook. */
-export const createSyncedWorkspace = async (name: FixtureName, pm: PackageManager): Promise<FixtureWorkspace> => {
-  const workspace = await createFixtureWorkspace(name, pm);
+/**
+ * A fixture workspace after init and sync, in a dir named after `label`; disposes it when setup fails, since vitest skips
+ * the teardown of a failed hook.
+ */
+export const createSyncedWorkspace = async (
+  name: FixtureName,
+  pm: PackageManager,
+  label: string = name
+): Promise<FixtureWorkspace> => {
+  const workspace = await createFixtureWorkspace(name, pm, label);
 
   try {
     await initAndSync(workspace);
