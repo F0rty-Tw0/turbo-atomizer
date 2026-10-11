@@ -1,0 +1,108 @@
+{
+  "extends": [
+    "//"
+  ],
+  "tags": [
+    "atomizer:definitions"
+  ],
+  "tasks": {
+    "e2e-ci--tests/checkout.live.spec.ts": {
+      "command": [
+        "node",
+        "-e",
+        "require('turbo-atomizer/exec')",
+        "tests/checkout.live.spec.ts",
+        "checkout.live.spec.ts",
+        "--atomizer-blob",
+        "--config=playwright.config.ts",
+        "--fail-on-flaky-tests"
+      ],
+      "dependsOn": [
+        "^build",
+        "e2e-ci-src--tests/checkout.live.spec.ts"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
+        "!**/*-snapshots/**"
+      ],
+      "outputs": [
+        ".atomizer/tests-checkout-live-spec-ts-4b1622/**",
+        "!.atomizer/tests-checkout-live-spec-ts-4b1622/test-results/**"
+      ],
+      "env": [
+        "TURBO_ATOMIZER_ARGS"
+      ],
+      "cache": false,
+      "tags": [
+        "atomizer:e2e-ci",
+        "atomizer:live"
+      ]
+    },
+    "e2e-ci--tests/login.spec.ts": {
+      "command": [
+        "node",
+        "-e",
+        "require('turbo-atomizer/exec')",
+        "tests/login.spec.ts",
+        "login.spec.ts",
+        "--atomizer-blob",
+        "--config=playwright.config.ts",
+        "--fail-on-flaky-tests"
+      ],
+      "dependsOn": [
+        "^build",
+        "e2e-ci-src--tests/login.spec.ts"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.{spec,test}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
+        "!**/*-snapshots/**"
+      ],
+      "outputs": [
+        ".atomizer/tests-login-spec-ts-6b6dc3/**",
+        "!.atomizer/tests-login-spec-ts-6b6dc3/test-results/**"
+      ],
+      "env": [
+        "TURBO_ATOMIZER_ARGS"
+      ],
+      "tags": [
+        "atomizer:e2e-ci"
+      ]
+    },
+    "e2e-ci-src--tests/checkout.live.spec.ts": {
+      "command": [
+        "node",
+        "-e",
+        "0"
+      ],
+      "inputs": [
+        "tests/checkout.live.spec.ts",
+        "tests/checkout.live.spec.ts-snapshots/**"
+      ],
+      "tags": [
+        "atomizer:carrier"
+      ]
+    },
+    "e2e-ci-src--tests/login.spec.ts": {
+      "command": [
+        "node",
+        "-e",
+        "0"
+      ],
+      "inputs": [
+        "tests/login.spec.ts",
+        "tests/login.spec.ts-snapshots/**"
+      ],
+      "tags": [
+        "atomizer:carrier"
+      ]
+    },
+    "e2e-ci--all": {
+      "dependsOn": [
+        "e2e-ci--tests/checkout.live.spec.ts",
+        "e2e-ci--tests/login.spec.ts"
+      ]
+    }
+  }
+}
