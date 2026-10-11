@@ -68,6 +68,16 @@
           "command": "vitest run --config {projectRoot}/vitest.config.ts"
         }
       }
+    ],
+    "nx-release-publish": [
+      {
+        "filter": {
+          "projects": ["packages/**"]
+        },
+        "options": {
+          "packageRoot": "dist/{projectRoot}"
+        }
+      }
     ]
   },
   "plugins": [
@@ -100,7 +110,23 @@
     }
   ],
   "release": {
-    "projects": ["turbo-atomizer"]
+    "projects": ["turbo-atomizer"],
+    "releaseTag": {
+      "pattern": "v{version}"
+    },
+    "version": {
+      "currentVersionResolver": "disk",
+      "adjustSemverBumpsForZeroMajorVersion": false,
+      "versionActionsOptions": {
+        "installIgnoreScripts": true
+      }
+    },
+    "changelog": {
+      "workspaceChangelog": false,
+      "projectChangelogs": {
+        "createRelease": false
+      }
+    }
   },
   "analytics": false
 }

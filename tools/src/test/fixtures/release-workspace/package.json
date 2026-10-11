@@ -1,0 +1,5 @@
+{
+  "name": "release-workspace",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Bump turbo-atomizer, or retry publishing the latest v* tag'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - publish-current
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      NX_DAEMON: 'false'
+
+    steps:
+      - name: Verify authorized branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          if [ "$RELEASE_REF" != 'refs/heads/master' ]; then
+            echo 'Releases are authorized only from master.' >&2
+            exit 1
+          fi
+
+      # SHA = actions/checkout@v7.0.1
+      - name: Checkout dispatched master commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Restore latest release tag for retry
+        if: inputs.version == 'publish-current'
+        run: |
+          tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [ -z "$tag" ]; then
+            echo '::error::No v* tag exists. Run patch, minor, or major first; publish-current only retries a release whose versioned source and tag were pushed.'
+            exit 1
+          fi
+          git merge-base --is-ancestor "refs/tags/$tag" refs/remotes/origin/master
+          git checkout --detach "refs/tags/$tag"
+
+      # SHA = pnpm/setup@v2.1.0
+      - name: Setup toolchain and install dependencies
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+
+      - name: Configure Git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Version and changelog with Nx
+        id: prepare
+        if: inputs.version != 'publish-current'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node tools/src/release.ts prepare "$RELEASE_VERSION"
+
+      - name: Push versioned source and tag
+        if: inputs.version != 'publish-current'
+        env:
+          RELEASE_TAG: v${{ steps.prepare.outputs.version }}
+        run: git push --atomic origin HEAD:refs/heads/master "refs/tags/$RELEASE_TAG"
+
+      - name: Build package
+        run: pnpm exec nx run turbo-atomizer:build
+
+      - name: Configure npm authentication
+        run: printf '%s\n' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$HOME/.npmrc"
+
+      - name: Publish with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
+          PNPM_CONFIG_PROVENANCE: 'true'
+        run: pnpm exec nx release publish --projects=turbo-atomizer
