@@ -90,7 +90,7 @@ describe('FEATURE: linux regression', (): void => {
     });
 
     it("WHEN a file in one spec's snapshot folder changes THEN only that file task runs", async (): Promise<void> => {
-      await workspace.edit(`${TESTS_DIR}/checkout.spec.ts-snapshots/heading-chromium-darwin.txt`, 'Atomizer fixture');
+      await workspace.edit(`${TESTS_DIR}/checkout.spec.ts-snapshots/heading-webkit-linux.txt`, 'Atomizer fixture');
 
       const run = await summarizedRun(workspace.root, 'turbo run e2e-ci');
 
