@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateListLine, validateTaskPath } from './spec-validation.util.ts';
+import { validateListLine, validateSpecLocation, validateTaskPath } from './spec-validation.util.ts';
+import { DEFAULT_SPEC_GLOBS } from '../../shared/atomizer/common/atomizer.const.ts';
 
 describe('FEATURE: spec validation', () => {
   describe('GIVEN a list line Playwright would misparse', () => {
@@ -56,6 +57,32 @@ describe('FEATURE: spec validation', () => {
   describe('GIVEN a task path without glob metacharacters', () => {
     it('WHEN a path with spaces is validated THEN no error is returned', () => {
       const error = validateTaskPath('tests/my spec.spec.ts');
+
+      expect(error).toBeUndefined();
+    });
+  });
+
+  describe('GIVEN the default specGlobs', () => {
+    it('WHEN a spec outside the package root is validated THEN the error names it and says why', () => {
+      const error = validateSpecLocation('../shared/x.spec.ts', DEFAULT_SPEC_GLOBS);
+
+      expect(error).toContain('"../shared/x.spec.ts" is outside the test package');
+    });
+
+    it('WHEN a spec on another drive is validated THEN the error says it is outside the test package', () => {
+      const error = validateSpecLocation('/d/shared/x.spec.ts', DEFAULT_SPEC_GLOBS);
+
+      expect(error).toContain('outside the test package');
+    });
+
+    it('WHEN a file no specGlobs entry matches is validated THEN the error names it and the fix', () => {
+      const error = validateSpecLocation('tests/a.e2e.ts', DEFAULT_SPEC_GLOBS);
+
+      expect(error).toContain('"tests/a.e2e.ts" matches no specGlobs entry');
+    });
+
+    it('WHEN a matching spec inside the package is validated THEN no error is returned', () => {
+      const error = validateSpecLocation('tests/nested/c.spec.ts', DEFAULT_SPEC_GLOBS);
 
       expect(error).toBeUndefined();
     });

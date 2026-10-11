@@ -1,3 +1,5 @@
+import { posix } from 'node:path';
+
 type ListLineRule = {
   readonly pattern: RegExp;
   readonly reason: string;
@@ -29,4 +31,19 @@ export const validateTaskPath = (taskPath: string): string | undefined => {
   if (metacharacter === undefined) return undefined;
 
   return `Spec path "${taskPath}" holds the glob metacharacter "${metacharacter}", so its turbo input would match other files; rename the spec file.`;
+};
+
+/** `taskPath` is the posix path relative to the test package (spec §6.2 step 4). */
+export const validateSpecLocation = (taskPath: string, specGlobs: string[]): string | undefined => {
+  const isAbove = taskPath.startsWith('../');
+  const isAbsolute = posix.isAbsolute(taskPath);
+
+  if (isAbove || isAbsolute) return `Spec "${taskPath}" is outside the test package; move it into the package.`;
+
+  const matchesTaskPath = (glob: string): boolean => posix.matchesGlob(taskPath, glob);
+  const isMatched = specGlobs.some(matchesTaskPath);
+
+  if (isMatched) return undefined;
+
+  return `Spec "${taskPath}" matches no specGlobs entry; rename the spec file or add a glob to specGlobs.`;
 };
