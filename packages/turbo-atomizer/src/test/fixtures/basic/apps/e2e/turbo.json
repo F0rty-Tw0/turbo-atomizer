@@ -1,0 +1,8 @@
+{
+  "extends": ["//", "e2e-atoms"],
+  "tasks": {
+    "e2e-ci": {
+      "dependsOn": ["e2e-ci--all"]
+    }
+  }
+}
