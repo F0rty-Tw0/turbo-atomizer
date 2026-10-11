@@ -1,10 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { appendFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
-import { turboQueryFileDeps, turboQueryPackageTasks } from './turbo-query.process.ts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { turboQueryAffectedTasks, turboQueryFileDeps, turboQueryPackageTasks } from './turbo-query.process.ts';
 import type { FixtureCopy } from '../../../test/common/fixture-copy.type.ts';
 import { TurboQueryException } from '../common/turbo-query.exception.ts';
 import type { PackageTasks } from '../common/turbo-query.type.ts';
-import { copyQueryWorkspace } from '../test/utils/query-workspace.spec.util.ts';
+import { commitQueryWorkspace, copyQueryWorkspace } from '../test/utils/query-workspace.spec.util.ts';
 
 describe('FEATURE: turbo query process', (): void => {
   describe('GIVEN a workspace where a spec imports a helper, an outside file, a node_modules package and a missing package', (): void => {
@@ -48,6 +51,43 @@ describe('FEATURE: turbo query process', (): void => {
       const query = turboQueryPackageTasks(workspace.directory, 'unknown');
 
       await expect(query).rejects.toThrow(TurboQueryException);
+    });
+  });
+
+  describe('GIVEN a committed git workspace whose test package has two tagged file tasks', (): void => {
+    let workspace: FixtureCopy;
+
+    beforeEach(async (): Promise<void> => {
+      vi.stubEnv('TURBO_SCM_BASE', 'HEAD');
+      workspace = await copyQueryWorkspace();
+      await commitQueryWorkspace(workspace);
+    });
+
+    afterEach(async (): Promise<void> => {
+      vi.unstubAllEnvs();
+      await workspace.dispose();
+    });
+
+    it('WHEN nothing changed THEN no affected task is returned', async (): Promise<void> => {
+      const tasks = await turboQueryAffectedTasks(workspace.directory, 'e2e-ci');
+
+      expect(tasks).toEqual([]);
+    });
+
+    it('WHEN one spec changed THEN only its file task is returned by full name', async (): Promise<void> => {
+      await appendFile(join(workspace.directory, 'apps/web-e2e/tests/a.spec.ts'), '// edit\n');
+
+      const tasks = await turboQueryAffectedTasks(workspace.directory, 'e2e-ci');
+
+      expect(tasks).toEqual(['web-e2e#e2e-ci--tests/a.spec.ts']);
+    });
+
+    it('WHEN a spec changed but another task group is queried THEN no task is returned', async (): Promise<void> => {
+      await appendFile(join(workspace.directory, 'apps/web-e2e/tests/a.spec.ts'), '// edit\n');
+
+      const tasks = await turboQueryAffectedTasks(workspace.directory, 'smoke');
+
+      expect(tasks).toEqual([]);
     });
   });
 });

@@ -29,3 +29,10 @@ export const fileDepsResultSchema = z.object({
 export const packageTasksResultSchema = z.object({
   data: z.object({ package: packageSchema })
 });
+
+const fullNameItemSchema = z.object({ fullName: z.string() });
+
+/** stdout of `turbo query` for `affectedTasks(taskFilter) { items { fullName } }`. */
+export const affectedTasksResultSchema = z.object({
+  data: z.object({ affectedTasks: z.object({ items: z.array(fullNameItemSchema) }) })
+});

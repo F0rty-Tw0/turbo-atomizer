@@ -1,6 +1,10 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "agentGuidance": false,
+  "futureFlags": {
+    "affectedUsingTaskInputs": true,
+    "experimentalTaskCommand": true
+  },
   "tasks": {
     "build": {
       "outputs": ["dist/**"]

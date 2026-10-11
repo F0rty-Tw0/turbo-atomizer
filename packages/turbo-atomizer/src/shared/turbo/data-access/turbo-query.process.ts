@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
 
 import { resolveTurboBin } from './turbo-bin.path.ts';
+import { ATOMIZER_TASK_TAG_PREFIX } from '../../atomizer/common/atomizer.const.ts';
 import { toStderrTail } from '../../playwright/utils/playwright-list-mapper.util.ts';
 import { TurboQueryException } from '../common/turbo-query.exception.ts';
-import { fileDepsResultSchema, packageTasksResultSchema } from '../common/turbo-query.schema.ts';
+import { affectedTasksResultSchema, fileDepsResultSchema, packageTasksResultSchema } from '../common/turbo-query.schema.ts';
 import type { PackageTasks } from '../common/turbo-query.type.ts';
 
 type TurboQueryRun = {
@@ -95,4 +96,17 @@ export const turboQueryPackageTasks = async (root: string, packageName: string):
   const dependencies = result.data.package.directDependencies.items.filter(isWorkspacePackage);
 
   return dependencies.map(toPackageTasks);
+};
+
+/**
+ * Full names (`<package>#<task>`) of the affected tasks tagged `atomizer:<task>`, in every package that carries the tag.
+ * Base and head come from turbo's defaults and `TURBO_SCM_BASE` / `TURBO_SCM_HEAD` (spec §6.6 step 2).
+ */
+export const turboQueryAffectedTasks = async (root: string, task: string): Promise<string[]> => {
+  const tag = JSON.stringify(`${ATOMIZER_TASK_TAG_PREFIX}${task}`);
+  const query = `{ affectedTasks(taskFilter: { has: { field: TAG, value: ${tag} } }) { items { fullName } } }`;
+  const raw = await queryTurbo(root, query);
+  const result = affectedTasksResultSchema.parse(raw);
+
+  return result.data.affectedTasks.items.map((item): string => item.fullName);
 };

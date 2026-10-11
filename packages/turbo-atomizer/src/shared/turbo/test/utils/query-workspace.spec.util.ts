@@ -1,9 +1,12 @@
+import { execFileSync } from 'node:child_process';
 import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
 import { copyTurboFixture } from './turbo-fixture.spec.util.ts';
 import type { FixtureCopy } from '../../../../test/common/fixture-copy.type.ts';
+
+const GIT_IDENTITY = ['-c', 'user.name=turbo-atomizer', '-c', 'user.email=test@turbo-atomizer.invalid', '-c', 'commit.gpgsign=false'];
 
 const installedTurboDir = (): string => {
   const require = createRequire(import.meta.url);
@@ -28,4 +31,14 @@ export const copyQueryWorkspace = async (): Promise<FixtureCopy> => {
   await writeFile(join(depDir, 'index.js'), 'exports.dep = 1;\n');
 
   return copy;
+};
+
+/** Makes the copy a git repo with one commit, so `turbo query affectedTasks` sees only edits made afterwards. */
+export const commitQueryWorkspace = async (copy: FixtureCopy): Promise<void> => {
+  const git = (args: string[]): Buffer => execFileSync('git', [...GIT_IDENTITY, ...args], { cwd: copy.directory, stdio: 'pipe' });
+
+  await writeFile(join(copy.directory, '.gitignore'), 'node_modules\n');
+  git(['init', '--quiet']);
+  git(['add', '--all']);
+  git(['commit', '--quiet', '--message', 'fixture']);
 };
