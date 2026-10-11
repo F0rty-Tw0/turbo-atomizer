@@ -118,7 +118,15 @@ describe('FEATURE: init preflight', (): void => {
 
       const planning = planInit(optionsFor(packageDir, 'tools/y-atoms'), initDepsMock().versions);
 
-      await expect(planning).rejects.toThrow(/generatedPackage "tools\/x-atoms" but --generated-dir is "tools\/y-atoms"/);
+      await expect(planning).rejects.toThrow('the atomizer config sets generatedPackage "tools/x-atoms" but --generated-dir is "tools/y-atoms"');
+    });
+
+    it('WHEN the config does not set generatedPackage and --generated-dir differs from the default THEN the message says it defaults', async (): Promise<void> => {
+      await writeFile(join(packageDir, 'turbo-atomizer.json'), '{}\n');
+
+      const planning = planInit(optionsFor(packageDir, 'tools/y-atoms'), initDepsMock().versions);
+
+      await expect(planning).rejects.toThrow('generatedPackage defaults to "tools/web-e2e-atoms" but --generated-dir is "tools/y-atoms"');
     });
 
     it('WHEN the test package has an e2e-ci script THEN it rejects with InitConflictException naming the script', async (): Promise<void> => {

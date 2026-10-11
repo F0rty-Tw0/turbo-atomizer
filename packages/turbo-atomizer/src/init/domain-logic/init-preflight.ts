@@ -84,9 +84,13 @@ const resolveGenerated = (root: string, testPackage: TestPackage, loaded: Loaded
 
   if (generated.dir === configured.dir) return generated;
 
+  // The loaded config fills an unset generatedPackage with the derived default, so a match means it may not be set.
+  const defaultDir = generatedPackageFor(testPackage.name, testPackage.dir).dir;
+  const setting = configured.dir === defaultDir ? 'generatedPackage defaults to' : 'the atomizer config sets generatedPackage';
+
   throw new InitConflictException(
     testPackage.dir,
-    `the atomizer config sets generatedPackage "${configured.dir}" but --generated-dir is "${generated.dir}"; drop --generated-dir or edit the config.`
+    `${setting} "${configured.dir}" but --generated-dir is "${generated.dir}"; drop --generated-dir or set generatedPackage in the config.`
   );
 };
 
