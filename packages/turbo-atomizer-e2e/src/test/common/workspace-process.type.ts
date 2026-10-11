@@ -20,3 +20,9 @@ export type Win32Process = {
   readonly Name: string;
   readonly CommandLine: string | null;
 };
+
+/** A `turbo run` caught mid-run: turbo.exe's pid and its descendants at that moment, supervisor trees left out. */
+export type TurboRunSnapshot = {
+  readonly turboPid: number;
+  readonly processes: WindowsProcess[];
+};

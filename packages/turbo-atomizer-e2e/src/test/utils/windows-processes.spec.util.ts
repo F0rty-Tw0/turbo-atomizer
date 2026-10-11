@@ -31,3 +31,21 @@ export const windowsProcesses = async (): Promise<WindowsProcess[]> => {
 
   return rows.map(toWindowsProcess);
 };
+
+/** Pids of `pid`'s descendants, found by walking `ParentProcessId` links in one snapshot; a reused pid cannot loop it. */
+export const descendantPids = (processes: WindowsProcess[], pid: number): number[] => {
+  const found = new Set<number>();
+  let parents = [pid];
+
+  while (parents.length > 0) {
+    const parentSet = new Set(parents);
+    const children = processes.filter(
+      (entry): boolean => parentSet.has(entry.parentPid) && entry.pid !== pid && !found.has(entry.pid)
+    );
+
+    parents = children.map((child): number => child.pid);
+    parents.forEach((childPid): void => void found.add(childPid));
+  }
+
+  return [...found];
+};

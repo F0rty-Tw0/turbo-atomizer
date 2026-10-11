@@ -76,7 +76,8 @@ const listProcesses = async (): Promise<ProcessEntry[]> => {
   return entries.map(fromWindows);
 };
 
-const isAlive = (pid: number): boolean => {
+/** Whether `pid` runs: signal 0 checks without sending anything. */
+export const isAlive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
 
@@ -104,7 +105,8 @@ const workspacePids = async (root: string): Promise<number[]> => {
   return [...pids];
 };
 
-const killQuietly = (pid: number): void => {
+/** Kills `pid` and ignores a process that has already exited. */
+export const killQuietly = (pid: number): void => {
   try {
     process.kill(pid, 'SIGKILL');
   } catch {

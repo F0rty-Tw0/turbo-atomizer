@@ -22,6 +22,12 @@ export type RunResult = {
   readonly durationMs: number;
 };
 
+/** A command started in the background; `pid` is the shell's (0 when the spawn failed, and `result` rejects). */
+export type RunningCommand = {
+  readonly pid: number;
+  readonly result: Promise<RunResult>;
+};
+
 /** Task id → hash, from `turbo run <task> --dry=json`. */
 export type TaskHashes = Record<string, string>;
 
