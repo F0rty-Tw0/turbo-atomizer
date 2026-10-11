@@ -258,6 +258,20 @@ describe('FEATURE: exec', (): void => {
     });
   });
 
+  describe('GIVEN a counting reporter path that contains a comma', (): void => {
+    it('WHEN exec runs THEN it exits 1 naming the path and the cause, before the server', async (): Promise<void> => {
+      const commaPath = '/opt/a,b/count-reporter.cjs';
+      const probe = execProbe(commaPath);
+
+      const exitCode = await runExec([...A_ARGV, CONFIG_ARG], packageDir, probe.deps);
+      const stderr = stderrChunks.join('');
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain(`${commaPath} contains a comma`);
+      expect(probe.calls).toEqual([]);
+    });
+  });
+
   describe('GIVEN TURBO_ATOMIZER_ARGS that is not a JSON array of strings', (): void => {
     it('WHEN exec runs THEN it exits 1 naming the variable, before the server', async (): Promise<void> => {
       const probe = execProbe(COUNT_REPORTER_PATH, '["--workers", 2]');
