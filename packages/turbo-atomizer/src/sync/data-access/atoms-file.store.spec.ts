@@ -48,4 +48,16 @@ describe('FEATURE: atoms file store', (): void => {
       expect(text).toBe('{"tasks":{}}\n');
     });
   });
+
+  describe('GIVEN a generated turbo.json checked out with CRLF line endings (git core.autocrlf on Windows)', (): void => {
+    it('WHEN it is read THEN its text has LF line endings, as sync writes it', async (): Promise<void> => {
+      const filePath = join(tempDir, 'turbo.json');
+
+      await writeAtomsFile(filePath, '{\r\n  "tasks": {}\r\n}\r\n');
+
+      const text = await readAtomsFile(filePath);
+
+      expect(text).toBe('{\n  "tasks": {}\n}\n');
+    });
+  });
 });
