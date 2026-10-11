@@ -3,6 +3,7 @@ import type { JSONPath } from 'jsonc-parser';
 export type TurboJsonContent = {
   readonly extends?: string[] | undefined;
   readonly futureFlags?: Record<string, unknown> | undefined;
+  readonly tags?: string[] | undefined;
   readonly tasks?: Record<string, unknown> | undefined;
 };
 
