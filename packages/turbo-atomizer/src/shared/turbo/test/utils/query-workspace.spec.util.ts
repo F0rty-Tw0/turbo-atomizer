@@ -3,10 +3,14 @@ import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
+import { vi } from 'vitest';
+
 import { copyTurboFixture } from './turbo-fixture.spec.util.ts';
 import type { FixtureCopy } from '../../../../test/common/fixture-copy.type.ts';
 
 const GIT_IDENTITY = ['-c', 'user.name=turbo-atomizer', '-c', 'user.email=test@turbo-atomizer.invalid', '-c', 'commit.gpgsign=false'];
+
+const isGithubKey = (key: string): boolean => key.startsWith('GITHUB_');
 
 const installedTurboDir = (): string => {
   const require = createRequire(import.meta.url);
@@ -31,6 +35,20 @@ export const copyQueryWorkspace = async (): Promise<FixtureCopy> => {
   await writeFile(join(depDir, 'index.js'), 'exports.dep = 1;\n');
 
   return copy;
+};
+
+/**
+ * Points turbo's affected base at `HEAD` and hides the runner's `GITHUB_*` (undo with `vi.unstubAllEnvs`): on a GitHub Actions
+ * push or pull request, turbo takes the base from the event, ignores `TURBO_SCM_BASE`, cannot find that commit in the fixture
+ * repo and treats every file as changed.
+ */
+export const stubLocalScmBase = (): void => {
+  const githubKeys = Object.keys(process.env).filter(isGithubKey);
+
+  vi.stubEnv('TURBO_SCM_BASE', 'HEAD');
+  githubKeys.forEach((key): void => {
+    vi.stubEnv(key, undefined);
+  });
 };
 
 /** Makes the copy a git repo with one commit, so `turbo query affectedTasks` sees only edits made afterwards. */

@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 import { affectedHandler } from './affected.handler.ts';
-import { commitQueryWorkspace, copyQueryWorkspace } from '../../shared/turbo/test/utils/query-workspace.spec.util.ts';
+import {
+  commitQueryWorkspace,
+  copyQueryWorkspace,
+  stubLocalScmBase
+} from '../../shared/turbo/test/utils/query-workspace.spec.util.ts';
 import type { FixtureCopy } from '../../test/common/fixture-copy.type.ts';
 
 const RUN_TIMEOUT_MS = 60_000;
@@ -17,7 +21,7 @@ describe('FEATURE: affected handler', (): void => {
   let stdoutSpy: MockInstance<typeof process.stdout.write>;
 
   beforeEach(async (): Promise<void> => {
-    vi.stubEnv('TURBO_SCM_BASE', 'HEAD');
+    stubLocalScmBase();
     workspace = await copyQueryWorkspace();
     testPackageDir = join(workspace.directory, 'apps/web-e2e');
     lonePackageDir = join(workspace.directory, 'apps/lone');
